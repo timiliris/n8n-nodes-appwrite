@@ -1,6 +1,6 @@
 # n8n-nodes-appwrite-full
 
-![n8n-nodes-appwrite-full](https://raw.githubusercontent.com/timiliris/n8n-nodes-appwrite-full/main/nodes/Appwrite/Appwrite.svg)
+![n8n-nodes-appwrite-full](https://github.com/timiliris/n8n-nodes-appwrite/blob/main/nodes/Appwrite/Appwrite.svg)
 
 This is an n8n community node that lets you interact with [Appwrite](https://appwrite.io/) - the open-source backend-as-a-service platform. It provides a complete integration with all major Appwrite services.
 
