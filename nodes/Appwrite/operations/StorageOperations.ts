@@ -1,0 +1,202 @@
+import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
+import { Storage } from 'node-appwrite';
+import { InputFile } from 'node-appwrite/file';
+
+export async function executeStorageOperation(
+	this: IExecuteFunctions,
+	storage: Storage,
+	operation: string,
+	i: number,
+): Promise<INodeExecutionData> {
+	// Bucket Operations
+	if (operation === 'createBucket') {
+		const bucketId = this.getNodeParameter('bucketId', i) as string;
+		const name = this.getNodeParameter('name', i) as string;
+		const permissions = JSON.parse(this.getNodeParameter('permissions', i, '[]') as string);
+		const fileSecurity = this.getNodeParameter('fileSecurity', i) as boolean;
+		const enabled = this.getNodeParameter('enabled', i) as boolean;
+		const options = this.getNodeParameter('options', i, {}) as any;
+
+		const response = await storage.createBucket(
+			bucketId,
+			name,
+			permissions,
+			fileSecurity,
+			enabled,
+			options.maximumFileSize,
+			options.allowedFileExtensions ? options.allowedFileExtensions.split(',').map((ext: string) => ext.trim()) : undefined,
+			options.compression,
+			options.encryption,
+			options.antivirus,
+		);
+		return { json: response };
+	} else if (operation === 'getBucket') {
+		const bucketId = this.getNodeParameter('bucketId', i) as string;
+		const response = await storage.getBucket(bucketId);
+		return { json: response };
+	} else if (operation === 'listBuckets') {
+		const response = await storage.listBuckets();
+		return { json: response };
+	} else if (operation === 'updateBucket') {
+		const bucketId = this.getNodeParameter('bucketId', i) as string;
+		const name = this.getNodeParameter('name', i) as string;
+		const permissions = JSON.parse(this.getNodeParameter('permissions', i, '[]') as string);
+		const fileSecurity = this.getNodeParameter('fileSecurity', i) as boolean;
+		const enabled = this.getNodeParameter('enabled', i) as boolean;
+		const options = this.getNodeParameter('options', i, {}) as any;
+
+		const response = await storage.updateBucket(
+			bucketId,
+			name,
+			permissions,
+			fileSecurity,
+			enabled,
+			options.maximumFileSize,
+			options.allowedFileExtensions ? options.allowedFileExtensions.split(',').map((ext: string) => ext.trim()) : undefined,
+			options.compression,
+			options.encryption,
+			options.antivirus,
+		);
+		return { json: response };
+	} else if (operation === 'deleteBucket') {
+		const bucketId = this.getNodeParameter('bucketId', i) as string;
+		await storage.deleteBucket(bucketId);
+		return { json: { success: true, bucketId } };
+	}
+
+	// File Operations
+	const bucketId = this.getNodeParameter('bucketId', i) as string;
+
+	if (operation === 'uploadFile') {
+		const fileId = this.getNodeParameter('fileId', i) as string;
+		const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i) as string;
+		const permissions = JSON.parse(this.getNodeParameter('permissions', i, '[]') as string);
+
+		const items = this.getInputData();
+		const binaryData = items[i].binary?.[binaryPropertyName];
+
+		if (!binaryData) {
+			throw new Error(`No binary data found in field "${binaryPropertyName}"`);
+		}
+
+		// Get the binary data buffer
+		const binaryDataBuffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
+
+		// Create InputFile from buffer
+		const file = InputFile.fromBuffer(
+			binaryDataBuffer,
+			binaryData.fileName || 'file',
+		);
+
+		const response = await storage.createFile(
+			bucketId,
+			fileId,
+			file,
+			permissions.length > 0 ? permissions : undefined,
+		);
+		return { json: response };
+	} else if (operation === 'getFile') {
+		const fileId = this.getNodeParameter('fileId', i) as string;
+		const response = await storage.getFile(bucketId, fileId);
+		return { json: response };
+	} else if (operation === 'listFiles') {
+		const response = await storage.listFiles(bucketId);
+		return { json: response };
+	} else if (operation === 'updateFile') {
+		const fileId = this.getNodeParameter('fileId', i) as string;
+		const name = this.getNodeParameter('name', i, '') as string;
+		const permissions = JSON.parse(this.getNodeParameter('permissions', i, '[]') as string);
+
+		const response = await storage.updateFile(
+			bucketId,
+			fileId,
+			name || undefined,
+			permissions.length > 0 ? permissions : undefined,
+		);
+		return { json: response };
+	} else if (operation === 'deleteFile') {
+		const fileId = this.getNodeParameter('fileId', i) as string;
+		await storage.deleteFile(bucketId, fileId);
+		return { json: { success: true, fileId } };
+	} else if (operation === 'downloadFile') {
+		const fileId = this.getNodeParameter('fileId', i) as string;
+		const options = this.getNodeParameter('options', i, {}) as any;
+		const binaryPropertyName = options.binaryPropertyName || 'data';
+
+		const fileBuffer = await storage.getFileDownload(bucketId, fileId);
+
+		// Get file metadata to get the filename
+		const fileMetadata = await storage.getFile(bucketId, fileId);
+
+		const binaryData = await this.helpers.prepareBinaryData(
+			Buffer.from(fileBuffer as ArrayBuffer),
+			fileMetadata.name,
+		);
+
+		return {
+			json: { success: true, fileId },
+			binary: {
+				[binaryPropertyName]: binaryData,
+			},
+		};
+	} else if (operation === 'getFileView') {
+		const fileId = this.getNodeParameter('fileId', i) as string;
+		const options = this.getNodeParameter('options', i, {}) as any;
+		const binaryPropertyName = options.binaryPropertyName || 'data';
+
+		const fileBuffer = await storage.getFileView(bucketId, fileId);
+
+		// Get file metadata to get the filename
+		const fileMetadata = await storage.getFile(bucketId, fileId);
+
+		const binaryData = await this.helpers.prepareBinaryData(
+			Buffer.from(fileBuffer as ArrayBuffer),
+			fileMetadata.name,
+		);
+
+		return {
+			json: { success: true, fileId },
+			binary: {
+				[binaryPropertyName]: binaryData,
+			},
+		};
+	} else if (operation === 'getFilePreview') {
+		const fileId = this.getNodeParameter('fileId', i) as string;
+		const previewOptions = this.getNodeParameter('previewOptions', i, {}) as any;
+
+		const fileBuffer = await storage.getFilePreview(
+			bucketId,
+			fileId,
+			previewOptions.width,
+			previewOptions.height,
+			previewOptions.gravity,
+			previewOptions.quality,
+			previewOptions.borderWidth,
+			previewOptions.borderColor,
+			previewOptions.borderRadius,
+			previewOptions.opacity,
+			previewOptions.rotation,
+			previewOptions.background,
+			previewOptions.output,
+		);
+
+		// Get file metadata to determine output filename
+		const fileMetadata = await storage.getFile(bucketId, fileId);
+		const outputFormat = previewOptions.output || 'jpg';
+		const fileName = `${fileMetadata.name.split('.')[0]}_preview.${outputFormat}`;
+
+		const binaryData = await this.helpers.prepareBinaryData(
+			Buffer.from(fileBuffer as ArrayBuffer),
+			fileName,
+		);
+
+		return {
+			json: { success: true, fileId },
+			binary: {
+				data: binaryData,
+			},
+		};
+	}
+
+	throw new Error(`Unknown storage operation: ${operation}`);
+}
