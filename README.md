@@ -18,6 +18,8 @@ This is an n8n community node that lets you interact with [Appwrite](https://app
 - **Icon included** &mdash; ships with a custom Appwrite SVG icon so the node is recognizable inside n8n.
 - **AI Tool Support** &mdash; can be used as a tool in AI agents (usableAsTool: true).
 
+> **⚠️ Important Notice**: This project is actively under development and has not been fully tested in all scenarios. While it includes comprehensive functionality, you may encounter bugs or unexpected behavior. If you discover any issues, please [open a GitHub issue](https://github.com/timiliris/n8n-nodes-appwrite/issues/new) with detailed information about the problem. Your feedback helps improve the node for everyone!
+
 [Installation](#installation)
 [Operations](#operations)
 [Credentials](#credentials)
