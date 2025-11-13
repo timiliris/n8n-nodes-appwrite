@@ -1,0 +1,77 @@
+{
+  "name": "Appwrite Integration Example",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "workflow-start",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "createDocument",
+        "databaseId": "main",
+        "collectionId": "users",
+        "documentId": "unique()",
+        "data": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"age\": 30,\n  \"active\": true\n}"
+      },
+      "id": "appwrite-create-doc",
+      "name": "Create User Document",
+      "type": "n8n-nodes-appwrite-full.appwrite",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "appwriteApi": {
+          "id": "1",
+          "name": "Appwrite API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "listDocuments",
+        "databaseId": "main",
+        "collectionId": "users"
+      },
+      "id": "appwrite-list-docs",
+      "name": "List All Users",
+      "type": "n8n-nodes-appwrite-full.appwrite",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "appwriteApi": {
+          "id": "1",
+          "name": "Appwrite API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Create User Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create User Document": {
+      "main": [
+        [
+          {
+            "node": "List All Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

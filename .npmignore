@@ -1,0 +1,51 @@
+# Source files (only publish dist/)
+nodes/**/*.ts
+credentials/**/*.ts
+!nodes/**/*.node.json
+
+# Tests
+test/
+coverage/
+*.test.ts
+*.spec.ts
+
+# Documentation
+examples/
+docs/
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Config files
+tsconfig.json
+.eslintrc.js
+.prettierrc
+jest.config.js
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies (will be installed by users)
+node_modules/
+
+# Misc
+.env
+.env.local
+*.bak
+*.tmp
+.cache/
