@@ -1,5 +1,9 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { Databases } from 'node-appwrite';
+import { getDatabaseParameters, getRequiredParameter } from '../utils/helpers';
+import { safeJsonParse } from '../utils/validators';
+import { ValidationError } from '../utils/errors';
+import { AttributeDefinition, AttributesList } from '../utils/types';
 
 export async function executeAttributeOperation(
 	this: IExecuteFunctions,
@@ -7,19 +11,24 @@ export async function executeAttributeOperation(
 	operation: string,
 	i: number,
 ): Promise<INodeExecutionData> {
-	const databaseId = this.getNodeParameter('databaseId', i) as string;
-	const collectionId = this.getNodeParameter('collectionId', i) as string;
+	const { databaseId, collectionId } = getDatabaseParameters(this, i);
 
 	if (operation === 'createMultiple') {
 		const inputMode = this.getNodeParameter('inputMode', i, 'form') as string;
-		let attributes: any[];
+		let attributes: AttributeDefinition[];
 
 		if (inputMode === 'form') {
-			const attributesList = this.getNodeParameter('attributesList', i, {}) as any;
+			const attributesList = this.getNodeParameter('attributesList', i, {}) as AttributesList;
 			attributes = attributesList.attributes || [];
 		} else {
 			const attributesJson = this.getNodeParameter('attributesJson', i) as string;
-			attributes = typeof attributesJson === 'string' ? JSON.parse(attributesJson) : attributesJson;
+
+			// Safely parse attributes JSON
+			const parseResult = safeJsonParse<AttributeDefinition[]>(attributesJson, 'attributes JSON');
+			if (!parseResult.success) {
+				throw new ValidationError(parseResult.error);
+			}
+			attributes = parseResult.data;
 		}
 
 		const results = [];
@@ -35,7 +44,7 @@ export async function executeAttributeOperation(
 					key,
 					size || 255,
 					required,
-					defaultValue || undefined,
+					typeof defaultValue === 'string' ? defaultValue : undefined,
 					array,
 				);
 			} else if (type === 'integer') {
@@ -46,7 +55,7 @@ export async function executeAttributeOperation(
 					required,
 					min,
 					max,
-					defaultValue !== undefined ? defaultValue : undefined,
+					typeof defaultValue === 'number' ? defaultValue : undefined,
 					array,
 				);
 			} else if (type === 'boolean') {
@@ -55,7 +64,7 @@ export async function executeAttributeOperation(
 					collectionId,
 					key,
 					required,
-					defaultValue !== undefined ? defaultValue : undefined,
+					typeof defaultValue === 'boolean' ? defaultValue : undefined,
 					array,
 				);
 			} else if (type === 'email') {
@@ -64,18 +73,18 @@ export async function executeAttributeOperation(
 					collectionId,
 					key,
 					required,
-					defaultValue || undefined,
+					typeof defaultValue === 'string' ? defaultValue : undefined,
 					array,
 				);
 			} else if (type === 'enum') {
-				const elementsArray = typeof elements === 'string' ? elements.split(',').map((e: string) => e.trim()) : elements;
+				const elementsArray = typeof elements === 'string' ? elements.split(',').map((e: string) => e.trim()) : (elements || []);
 				response = await databases.createEnumAttribute(
 					databaseId,
 					collectionId,
 					key,
 					elementsArray,
 					required,
-					defaultValue || undefined,
+					typeof defaultValue === 'string' ? defaultValue : undefined,
 					array,
 				);
 			} else if (type === 'float') {
@@ -86,7 +95,7 @@ export async function executeAttributeOperation(
 					required,
 					min,
 					max,
-					defaultValue !== undefined ? defaultValue : undefined,
+					typeof defaultValue === 'number' ? defaultValue : undefined,
 					array,
 				);
 			} else if (type === 'datetime') {
@@ -95,7 +104,7 @@ export async function executeAttributeOperation(
 					collectionId,
 					key,
 					required,
-					defaultValue || undefined,
+					typeof defaultValue === 'string' ? defaultValue : undefined,
 					array,
 				);
 			}
@@ -106,7 +115,7 @@ export async function executeAttributeOperation(
 		return { json: { success: true, created: results.length, attributes: results } };
 	}
 
-	const key = this.getNodeParameter('key', i) as string;
+	const key = getRequiredParameter(this, 'key', i, false); // Don't validate key as ID format
 
 	if (operation === 'createString') {
 		const size = this.getNodeParameter('size', i, 255) as number;

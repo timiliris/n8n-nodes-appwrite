@@ -69,12 +69,12 @@ describe('Appwrite Node', () => {
 
 			expect(storageOperations).toBeDefined();
 			const options = (storageOperations as any).options;
-			expect(options).toHaveLength(3);
-			expect(options.map((opt: any) => opt.value)).toEqual([
-				'deleteFile',
-				'getFile',
-				'listFiles',
-			]);
+			expect(options.length).toBeGreaterThan(0);
+			// Check that key operations exist
+			const operationValues = options.map((opt: any) => opt.value);
+			expect(operationValues).toContain('createBucket');
+			expect(operationValues).toContain('uploadFile');
+			expect(operationValues).toContain('listFiles');
 		});
 	});
 

@@ -1,6 +1,10 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { Storage } from 'node-appwrite';
 import { InputFile } from 'node-appwrite/file';
+import { getRequiredParameter, getOptionalParameter } from '../utils/helpers';
+import { safeJsonArrayParse, validateName } from '../utils/validators';
+import { ValidationError } from '../utils/errors';
+import { BucketOptions, FilePreviewOptions, FileDownloadOptions } from '../utils/types';
 
 export async function executeStorageOperation(
 	this: IExecuteFunctions,
@@ -10,12 +14,26 @@ export async function executeStorageOperation(
 ): Promise<INodeExecutionData> {
 	// Bucket Operations
 	if (operation === 'createBucket') {
-		const bucketId = this.getNodeParameter('bucketId', i) as string;
+		const bucketId = getRequiredParameter(this, 'bucketId', i);
 		const name = this.getNodeParameter('name', i) as string;
-		const permissions = JSON.parse(this.getNodeParameter('permissions', i, '[]') as string);
+
+		// Validate name
+		const nameValidation = validateName(name, 'Bucket name');
+		if (!nameValidation.valid) {
+			throw new ValidationError(nameValidation.error!);
+		}
+
+		// Safely parse permissions
+		const permissionsStr = this.getNodeParameter('permissions', i, '[]') as string;
+		const permissionsResult = safeJsonArrayParse(permissionsStr, 'permissions');
+		if (!permissionsResult.success) {
+			throw new ValidationError(permissionsResult.error);
+		}
+		const permissions = permissionsResult.data;
+
 		const fileSecurity = this.getNodeParameter('fileSecurity', i) as boolean;
 		const enabled = this.getNodeParameter('enabled', i) as boolean;
-		const options = this.getNodeParameter('options', i, {}) as any;
+		const options = getOptionalParameter<BucketOptions>(this, 'options', i, {});
 
 		const response = await storage.createBucket(
 			bucketId,
@@ -25,25 +43,39 @@ export async function executeStorageOperation(
 			enabled,
 			options.maximumFileSize,
 			options.allowedFileExtensions ? options.allowedFileExtensions.split(',').map((ext: string) => ext.trim()) : undefined,
-			options.compression,
+			options.compression as any, // Appwrite SDK type compatibility
 			options.encryption,
 			options.antivirus,
 		);
 		return { json: response };
 	} else if (operation === 'getBucket') {
-		const bucketId = this.getNodeParameter('bucketId', i) as string;
+		const bucketId = getRequiredParameter(this, 'bucketId', i);
 		const response = await storage.getBucket(bucketId);
 		return { json: response };
 	} else if (operation === 'listBuckets') {
 		const response = await storage.listBuckets();
 		return { json: response };
 	} else if (operation === 'updateBucket') {
-		const bucketId = this.getNodeParameter('bucketId', i) as string;
+		const bucketId = getRequiredParameter(this, 'bucketId', i);
 		const name = this.getNodeParameter('name', i) as string;
-		const permissions = JSON.parse(this.getNodeParameter('permissions', i, '[]') as string);
+
+		// Validate name
+		const nameValidation = validateName(name, 'Bucket name');
+		if (!nameValidation.valid) {
+			throw new ValidationError(nameValidation.error!);
+		}
+
+		// Safely parse permissions
+		const permissionsStr = this.getNodeParameter('permissions', i, '[]') as string;
+		const permissionsResult = safeJsonArrayParse(permissionsStr, 'permissions');
+		if (!permissionsResult.success) {
+			throw new ValidationError(permissionsResult.error);
+		}
+		const permissions = permissionsResult.data;
+
 		const fileSecurity = this.getNodeParameter('fileSecurity', i) as boolean;
 		const enabled = this.getNodeParameter('enabled', i) as boolean;
-		const options = this.getNodeParameter('options', i, {}) as any;
+		const options = getOptionalParameter<BucketOptions>(this, 'options', i, {});
 
 		const response = await storage.updateBucket(
 			bucketId,
@@ -53,24 +85,31 @@ export async function executeStorageOperation(
 			enabled,
 			options.maximumFileSize,
 			options.allowedFileExtensions ? options.allowedFileExtensions.split(',').map((ext: string) => ext.trim()) : undefined,
-			options.compression,
+			options.compression as any, // Appwrite SDK type compatibility
 			options.encryption,
 			options.antivirus,
 		);
 		return { json: response };
 	} else if (operation === 'deleteBucket') {
-		const bucketId = this.getNodeParameter('bucketId', i) as string;
+		const bucketId = getRequiredParameter(this, 'bucketId', i);
 		await storage.deleteBucket(bucketId);
 		return { json: { success: true, bucketId } };
 	}
 
 	// File Operations
-	const bucketId = this.getNodeParameter('bucketId', i) as string;
+	const bucketId = getRequiredParameter(this, 'bucketId', i);
 
 	if (operation === 'uploadFile') {
-		const fileId = this.getNodeParameter('fileId', i) as string;
+		const fileId = getRequiredParameter(this, 'fileId', i);
 		const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i) as string;
-		const permissions = JSON.parse(this.getNodeParameter('permissions', i, '[]') as string);
+
+		// Safely parse permissions
+		const permissionsStr = this.getNodeParameter('permissions', i, '[]') as string;
+		const permissionsResult = safeJsonArrayParse(permissionsStr, 'permissions');
+		if (!permissionsResult.success) {
+			throw new ValidationError(permissionsResult.error);
+		}
+		const permissions = permissionsResult.data;
 
 		const items = this.getInputData();
 		const binaryData = items[i].binary?.[binaryPropertyName];
@@ -96,16 +135,23 @@ export async function executeStorageOperation(
 		);
 		return { json: response };
 	} else if (operation === 'getFile') {
-		const fileId = this.getNodeParameter('fileId', i) as string;
+		const fileId = getRequiredParameter(this, 'fileId', i);
 		const response = await storage.getFile(bucketId, fileId);
 		return { json: response };
 	} else if (operation === 'listFiles') {
 		const response = await storage.listFiles(bucketId);
 		return { json: response };
 	} else if (operation === 'updateFile') {
-		const fileId = this.getNodeParameter('fileId', i) as string;
-		const name = this.getNodeParameter('name', i, '') as string;
-		const permissions = JSON.parse(this.getNodeParameter('permissions', i, '[]') as string);
+		const fileId = getRequiredParameter(this, 'fileId', i);
+		const name = getOptionalParameter(this, 'name', i, '');
+
+		// Safely parse permissions
+		const permissionsStr = this.getNodeParameter('permissions', i, '[]') as string;
+		const permissionsResult = safeJsonArrayParse(permissionsStr, 'permissions');
+		if (!permissionsResult.success) {
+			throw new ValidationError(permissionsResult.error);
+		}
+		const permissions = permissionsResult.data;
 
 		const response = await storage.updateFile(
 			bucketId,
@@ -115,12 +161,12 @@ export async function executeStorageOperation(
 		);
 		return { json: response };
 	} else if (operation === 'deleteFile') {
-		const fileId = this.getNodeParameter('fileId', i) as string;
+		const fileId = getRequiredParameter(this, 'fileId', i);
 		await storage.deleteFile(bucketId, fileId);
 		return { json: { success: true, fileId } };
 	} else if (operation === 'downloadFile') {
-		const fileId = this.getNodeParameter('fileId', i) as string;
-		const options = this.getNodeParameter('options', i, {}) as any;
+		const fileId = getRequiredParameter(this, 'fileId', i);
+		const options = getOptionalParameter<FileDownloadOptions>(this, 'options', i, {});
 		const binaryPropertyName = options.binaryPropertyName || 'data';
 
 		const fileBuffer = await storage.getFileDownload(bucketId, fileId);
@@ -140,8 +186,8 @@ export async function executeStorageOperation(
 			},
 		};
 	} else if (operation === 'getFileView') {
-		const fileId = this.getNodeParameter('fileId', i) as string;
-		const options = this.getNodeParameter('options', i, {}) as any;
+		const fileId = getRequiredParameter(this, 'fileId', i);
+		const options = getOptionalParameter<FileDownloadOptions>(this, 'options', i, {});
 		const binaryPropertyName = options.binaryPropertyName || 'data';
 
 		const fileBuffer = await storage.getFileView(bucketId, fileId);
@@ -161,15 +207,15 @@ export async function executeStorageOperation(
 			},
 		};
 	} else if (operation === 'getFilePreview') {
-		const fileId = this.getNodeParameter('fileId', i) as string;
-		const previewOptions = this.getNodeParameter('previewOptions', i, {}) as any;
+		const fileId = getRequiredParameter(this, 'fileId', i);
+		const previewOptions = getOptionalParameter<FilePreviewOptions>(this, 'previewOptions', i, {});
 
 		const fileBuffer = await storage.getFilePreview(
 			bucketId,
 			fileId,
 			previewOptions.width,
 			previewOptions.height,
-			previewOptions.gravity,
+			previewOptions.gravity as any, // Appwrite SDK type compatibility
 			previewOptions.quality,
 			previewOptions.borderWidth,
 			previewOptions.borderColor,
@@ -177,7 +223,7 @@ export async function executeStorageOperation(
 			previewOptions.opacity,
 			previewOptions.rotation,
 			previewOptions.background,
-			previewOptions.output,
+			previewOptions.output as any, // Appwrite SDK type compatibility
 		);
 
 		// Get file metadata to determine output filename
