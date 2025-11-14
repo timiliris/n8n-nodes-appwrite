@@ -5,6 +5,16 @@ import { safeJsonParse } from '../utils/validators';
 import { ValidationError } from '../utils/errors';
 import { AttributeDefinition, AttributesList } from '../utils/types';
 
+/**
+ * Executes attribute operations for Appwrite collections
+ * @param this - n8n execution context
+ * @param databases - Appwrite Databases service instance
+ * @param operation - Operation to perform (createString, createInteger, createFloat, createBoolean, createEmail, createUrl, createEnum, createDate, delete, createBatch)
+ * @param i - Current item index
+ * @returns Execution data with operation results
+ * @throws ValidationError if attribute definition is invalid
+ * @throws Error if operation is unknown
+ */
 export async function executeAttributeOperation(
 	this: IExecuteFunctions,
 	databases: Databases,

@@ -7,6 +7,8 @@ import {
 	IWebhookResponseData,
 } from 'n8n-workflow';
 import { Client, Databases } from 'node-appwrite';
+import { escapeHtml } from '../Appwrite/utils/validators';
+import type { FormAttribute } from './types/FormTriggerTypes';
 
 export class AppwriteFormTrigger implements INodeType {
 	description: INodeTypeDescription = {
@@ -174,7 +176,7 @@ export class AppwriteFormTrigger implements INodeType {
 					noWebhookResponse: true,
 				};
 			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : 'Failed to load form';
+				const errorMessage = error instanceof Error ? escapeHtml(error.message) : 'Failed to load form';
 				res.writeHead(500, { 'Content-Type': 'text/html' });
 				res.end(`<html><body><h1>Error</h1><p>${errorMessage}</p></body></html>`);
 
@@ -197,7 +199,7 @@ export class AppwriteFormTrigger implements INodeType {
 				// Convert form data to proper types based on collection schema
 				const body: IDataObject = {};
 				for (const attr of attributes) {
-					const attrObj = attr as any;
+					const attrObj = attr as FormAttribute;
 					const key = attrObj.key;
 					const value = rawBody[key];
 
@@ -304,7 +306,7 @@ export class AppwriteFormTrigger implements INodeType {
 }
 
 function generateFormHTML(
-	attributes: any[],
+	attributes: FormAttribute[],
 	title: string,
 	description: string,
 	submitText: string,
@@ -312,6 +314,9 @@ function generateFormHTML(
 	webhookUrl: string,
 ): string {
 	const themeStyles = getThemeStyles(theme);
+	const safeTitle = escapeHtml(title);
+	const safeDescription = escapeHtml(description);
+	const safeSubmitText = escapeHtml(submitText);
 
 	let formFields = '';
 	for (const attr of attributes) {
@@ -320,66 +325,71 @@ function generateFormHTML(
 		}
 
 		const required = attr.required ? 'required' : '';
-		const label = attr.key.charAt(0).toUpperCase() + attr.key.slice(1).replace(/([A-Z])/g, ' $1');
+		const safeKey = escapeHtml(attr.key);
+		const label = escapeHtml(attr.key.charAt(0).toUpperCase() + attr.key.slice(1).replace(/([A-Z])/g, ' $1'));
 
 		switch (attr.type) {
 			case 'string':
-			case 'email':
+			case 'email': {
 				const inputType = attr.type === 'email' ? 'email' : 'text';
 				const maxLength = attr.size ? `maxlength="${attr.size}"` : '';
 				formFields += `
 					<div class="form-group">
-						<label for="${attr.key}">${label}${attr.required ? ' *' : ''}</label>
-						<input type="${inputType}" id="${attr.key}" name="${attr.key}" ${required} ${maxLength} class="form-control" />
+						<label for="${safeKey}">${label}${attr.required ? ' *' : ''}</label>
+						<input type="${inputType}" id="${safeKey}" name="${safeKey}" ${required} ${maxLength} class="form-control" />
 					</div>
 				`;
 				break;
+			}
 
 			case 'integer':
-			case 'float':
+			case 'float': {
 				const step = attr.type === 'float' ? '0.01' : '1';
 				const min = attr.min !== null && attr.min !== undefined ? `min="${attr.min}"` : '';
 				const max = attr.max !== null && attr.max !== undefined ? `max="${attr.max}"` : '';
 				formFields += `
 					<div class="form-group">
-						<label for="${attr.key}">${label}${attr.required ? ' *' : ''}</label>
-						<input type="number" id="${attr.key}" name="${attr.key}" step="${step}" ${min} ${max} ${required} class="form-control" />
+						<label for="${safeKey}">${label}${attr.required ? ' *' : ''}</label>
+						<input type="number" id="${safeKey}" name="${safeKey}" step="${step}" ${min} ${max} ${required} class="form-control" />
 					</div>
 				`;
 				break;
+			}
 
 			case 'boolean':
 				formFields += `
 					<div class="form-group checkbox-group">
 						<label>
-							<input type="checkbox" id="${attr.key}" name="${attr.key}" value="true" />
+							<input type="checkbox" id="${safeKey}" name="${safeKey}" value="true" />
 							${label}
 						</label>
 					</div>
 				`;
 				break;
 
-			case 'enum':
+			case 'enum': {
 				const elements = attr.elements || [];
 				let options = '<option value="">Select an option</option>';
 				for (const element of elements) {
-					options += `<option value="${element}">${element}</option>`;
+					const safeElement = escapeHtml(element);
+					options += `<option value="${safeElement}">${safeElement}</option>`;
 				}
 				formFields += `
 					<div class="form-group">
-						<label for="${attr.key}">${label}${attr.required ? ' *' : ''}</label>
-						<select id="${attr.key}" name="${attr.key}" ${required} class="form-control">
+						<label for="${safeKey}">${label}${attr.required ? ' *' : ''}</label>
+						<select id="${safeKey}" name="${safeKey}" ${required} class="form-control">
 							${options}
 						</select>
 					</div>
 				`;
 				break;
+			}
 
 			case 'datetime':
 				formFields += `
 					<div class="form-group">
-						<label for="${attr.key}">${label}${attr.required ? ' *' : ''}</label>
-						<input type="datetime-local" id="${attr.key}" name="${attr.key}" ${required} class="form-control" />
+						<label for="${safeKey}">${label}${attr.required ? ' *' : ''}</label>
+						<input type="datetime-local" id="${safeKey}" name="${safeKey}" ${required} class="form-control" />
 					</div>
 				`;
 				break;
@@ -387,8 +397,8 @@ function generateFormHTML(
 			default:
 				formFields += `
 					<div class="form-group">
-						<label for="${attr.key}">${label}${attr.required ? ' *' : ''}</label>
-						<input type="text" id="${attr.key}" name="${attr.key}" ${required} class="form-control" />
+						<label for="${safeKey}">${label}${attr.required ? ' *' : ''}</label>
+						<input type="text" id="${safeKey}" name="${safeKey}" ${required} class="form-control" />
 					</div>
 				`;
 		}
@@ -498,11 +508,11 @@ function generateFormHTML(
 </head>
 <body>
 	<div class="container">
-		<h1>${title}</h1>
-		<p class="description">${description}</p>
+		<h1>${safeTitle}</h1>
+		<p class="description">${safeDescription}</p>
 		<form method="POST" action="${webhookUrl}">
 			${formFields}
-			<button type="submit" class="submit-btn">${submitText}</button>
+			<button type="submit" class="submit-btn">${safeSubmitText}</button>
 		</form>
 		<p class="required-note">* Required fields</p>
 	</div>
@@ -512,6 +522,7 @@ function generateFormHTML(
 
 function generateSuccessHTML(message: string, theme: string): string {
 	const themeStyles = getThemeStyles(theme);
+	const safeMessage = escapeHtml(message);
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -569,7 +580,7 @@ function generateSuccessHTML(message: string, theme: string): string {
 	<div class="container">
 		<div class="success-icon">✓</div>
 		<h1>Success!</h1>
-		<p>${message}</p>
+		<p>${safeMessage}</p>
 	</div>
 </body>
 </html>`;
@@ -577,6 +588,7 @@ function generateSuccessHTML(message: string, theme: string): string {
 
 function generateErrorHTML(message: string, theme: string): string {
 	const themeStyles = getThemeStyles(theme);
+	const safeMessage = escapeHtml(message);
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -645,7 +657,7 @@ function generateErrorHTML(message: string, theme: string): string {
 	<div class="container">
 		<div class="error-icon">✕</div>
 		<h1>Error</h1>
-		<p>${message}</p>
+		<p>${safeMessage}</p>
 		<a href="javascript:history.back()" class="back-btn">Go Back</a>
 	</div>
 </body>

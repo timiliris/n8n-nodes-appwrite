@@ -187,3 +187,78 @@ export function validateNumberRange(
 
 	return { valid: true };
 }
+
+/**
+ * Escapes HTML characters to prevent XSS attacks
+ */
+export function escapeHtml(text: string): string {
+	if (typeof text !== 'string') {
+		return '';
+	}
+	const htmlEscapeMap: Record<string, string> = {
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#x27;',
+		'/': '&#x2F;',
+	};
+	return text.replace(/[&<>"'/]/g, (char) => htmlEscapeMap[char] || char);
+}
+
+/**
+ * Validates Appwrite permission format
+ * Valid formats: read("any"), write("user:123"), create("team:456")
+ */
+export function validatePermission(permission: string): ValidationResult {
+	if (!permission || typeof permission !== 'string') {
+		return {
+			valid: false,
+			error: 'Permission must be a string',
+		};
+	}
+
+	// Appwrite permission format: action("role:id") or action("role")
+	const permissionRegex = /^(read|write|create|update|delete)\("[^"]+"\)$/;
+
+	if (!permissionRegex.test(permission)) {
+		return {
+			valid: false,
+			error: `Invalid permission format: "${permission}". Expected format: action("role") or action("role:id")`,
+		};
+	}
+
+	return { valid: true };
+}
+
+/**
+ * Validates an array of permissions
+ */
+export function validatePermissions(permissions: string[]): ValidationResult {
+	if (!Array.isArray(permissions)) {
+		return {
+			valid: false,
+			error: 'Permissions must be an array',
+		};
+	}
+
+	for (const perm of permissions) {
+		const result = validatePermission(perm);
+		if (!result.valid) {
+			return result;
+		}
+	}
+
+	return { valid: true };
+}
+
+/**
+ * Escapes special characters in query values to prevent injection
+ */
+export function escapeQueryValue(value: string): string {
+	if (typeof value !== 'string') {
+		return String(value);
+	}
+	// Escape quotes and backslashes
+	return value.replace(/["\\]/g, '\\$&');
+}

@@ -1,12 +1,27 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
+import { safeJsonParse, escapeQueryValue } from '../../Appwrite/utils/validators';
+import type {
+	PermissionsList,
+	QueriesList,
+	SchemaAttribute,
+	SchemaAttributesList,
+} from '../types/HelperTypes';
 
+/**
+ * Executes helper operations for building Appwrite queries, permissions, and schemas
+ * @param this - n8n execution context
+ * @param operation - Operation to perform (buildPermissions, buildQuery, buildSchema)
+ * @param i - Current item index
+ * @returns Execution data with formatted permissions/queries/schema
+ * @throws Error if operation is unknown or JSON parsing fails
+ */
 export async function executeHelperOperation(
 	this: IExecuteFunctions,
 	operation: string,
 	i: number,
 ): Promise<INodeExecutionData> {
 	if (operation === 'buildPermissions') {
-		const permissionsList = this.getNodeParameter('permissionsList', i, {}) as any;
+		const permissionsList = this.getNodeParameter('permissionsList', i, {}) as PermissionsList;
 		const permissions = permissionsList.permissions || [];
 
 		const result: string[] = [];
@@ -39,62 +54,63 @@ export async function executeHelperOperation(
 			},
 		};
 	} else if (operation === 'buildQuery') {
-		const queriesList = this.getNodeParameter('queriesList', i, {}) as any;
+		const queriesList = this.getNodeParameter('queriesList', i, {}) as QueriesList;
 		const queries = queriesList.queries || [];
 
 		const result: string[] = [];
 
 		for (const query of queries) {
-			const { queryType, attribute, value, values, startValue, endValue, limitValue, offsetValue } = query;
+			const { queryType, attribute = '', value = '', values = '', startValue = '', endValue = '', limitValue = 25, offsetValue = 0 } = query;
 
 			let queryString: string;
 
 			switch (queryType) {
 				case 'equal':
-					queryString = `Query.equal("${attribute}", "${value}")`;
+					queryString = `Query.equal("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
 				case 'notEqual':
-					queryString = `Query.notEqual("${attribute}", "${value}")`;
+					queryString = `Query.notEqual("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
 				case 'lessThan':
-					queryString = `Query.lessThan("${attribute}", "${value}")`;
+					queryString = `Query.lessThan("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
 				case 'lessThanEqual':
-					queryString = `Query.lessThanEqual("${attribute}", "${value}")`;
+					queryString = `Query.lessThanEqual("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
 				case 'greaterThan':
-					queryString = `Query.greaterThan("${attribute}", "${value}")`;
+					queryString = `Query.greaterThan("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
 				case 'greaterThanEqual':
-					queryString = `Query.greaterThanEqual("${attribute}", "${value}")`;
+					queryString = `Query.greaterThanEqual("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
 				case 'search':
-					queryString = `Query.search("${attribute}", "${value}")`;
+					queryString = `Query.search("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
 				case 'isNull':
-					queryString = `Query.isNull("${attribute}")`;
+					queryString = `Query.isNull("${escapeQueryValue(attribute)}")`;
 					break;
 				case 'isNotNull':
-					queryString = `Query.isNotNull("${attribute}")`;
+					queryString = `Query.isNotNull("${escapeQueryValue(attribute)}")`;
 					break;
 				case 'between':
-					queryString = `Query.between("${attribute}", "${startValue}", "${endValue}")`;
+					queryString = `Query.between("${escapeQueryValue(attribute)}", "${escapeQueryValue(startValue)}", "${escapeQueryValue(endValue)}")`;
 					break;
 				case 'startsWith':
-					queryString = `Query.startsWith("${attribute}", "${value}")`;
+					queryString = `Query.startsWith("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
 				case 'endsWith':
-					queryString = `Query.endsWith("${attribute}", "${value}")`;
+					queryString = `Query.endsWith("${escapeQueryValue(attribute)}", "${escapeQueryValue(value)}")`;
 					break;
-				case 'select':
-					const selectAttrs = values.split(',').map((v: string) => `"${v.trim()}"`).join(', ');
+				case 'select': {
+					const selectAttrs = values.split(',').map((v: string) => `"${escapeQueryValue(v.trim())}"`).join(', ');
 					queryString = `Query.select([${selectAttrs}])`;
 					break;
+				}
 				case 'orderDesc':
-					queryString = `Query.orderDesc("${attribute}")`;
+					queryString = `Query.orderDesc("${escapeQueryValue(attribute)}")`;
 					break;
 				case 'orderAsc':
-					queryString = `Query.orderAsc("${attribute}")`;
+					queryString = `Query.orderAsc("${escapeQueryValue(attribute)}")`;
 					break;
 				case 'limit':
 					queryString = `Query.limit(${limitValue})`;
@@ -118,14 +134,18 @@ export async function executeHelperOperation(
 		};
 	} else if (operation === 'buildSchema') {
 		const inputMode = this.getNodeParameter('schemaInputMode', i, 'form') as string;
-		let attributes: any[];
+		let attributes: SchemaAttribute[];
 
 		if (inputMode === 'form') {
-			const schemaAttributesList = this.getNodeParameter('schemaAttributesList', i, {}) as any;
+			const schemaAttributesList = this.getNodeParameter('schemaAttributesList', i, {}) as SchemaAttributesList;
 			attributes = schemaAttributesList.attributes || [];
 		} else {
 			const schemaInputJson = this.getNodeParameter('schemaInputJson', i) as string;
-			attributes = typeof schemaInputJson === 'string' ? JSON.parse(schemaInputJson) : schemaInputJson;
+			const parseResult = safeJsonParse<SchemaAttribute[]>(schemaInputJson, 'schemaInputJson');
+			if (!parseResult.success) {
+				throw new Error(parseResult.error);
+			}
+			attributes = parseResult.data;
 		}
 
 		const schema = {

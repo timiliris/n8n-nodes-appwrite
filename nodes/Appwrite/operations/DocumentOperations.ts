@@ -4,6 +4,16 @@ import { getDatabaseParameters, getRequiredParameter } from '../utils/helpers';
 import { safeJsonParse, safeJsonArrayParse } from '../utils/validators';
 import { ValidationError } from '../utils/errors';
 
+/**
+ * Executes document operations for Appwrite
+ * @param this - n8n execution context
+ * @param databases - Appwrite Databases service instance
+ * @param operation - Operation to perform (create, get, list, update, delete)
+ * @param i - Current item index
+ * @returns Execution data with operation results
+ * @throws ValidationError if data validation fails
+ * @throws Error if operation is unknown
+ */
 export async function executeDocumentOperation(
 	this: IExecuteFunctions,
 	databases: Databases,

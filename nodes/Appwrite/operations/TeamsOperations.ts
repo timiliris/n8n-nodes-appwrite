@@ -1,6 +1,16 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { Teams } from 'node-appwrite';
+import { safeJsonParse } from '../utils/validators';
 
+/**
+ * Executes team operations for Appwrite
+ * @param this - n8n execution context
+ * @param teams - Appwrite Teams service instance
+ * @param operation - Operation to perform (create, get, list, update, delete, listMemberships, updatePreferences, getPreferences)
+ * @param i - Current item index
+ * @returns Execution data with operation results
+ * @throws Error if operation is unknown or JSON parsing fails
+ */
 export async function executeTeamsOperation(
 	this: IExecuteFunctions,
 	teams: Teams,
@@ -104,7 +114,12 @@ export async function executeTeamsOperation(
 		return { json: response };
 	} else if (operation === 'updatePreferences') {
 		const teamId = this.getNodeParameter('teamId', i) as string;
-		const preferences = JSON.parse(this.getNodeParameter('preferences', i) as string);
+		const preferencesStr = this.getNodeParameter('preferences', i) as string;
+		const parseResult = safeJsonParse<Record<string, unknown>>(preferencesStr, 'preferences');
+		if (!parseResult.success) {
+			throw new Error(parseResult.error);
+		}
+		const preferences = parseResult.data as object;
 
 		const response = await teams.updatePrefs(teamId, preferences);
 		return { json: response };

@@ -1,7 +1,17 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { Sites, Framework, BuildRuntime, Adapter, VCSDeploymentType } from 'node-appwrite';
 import { InputFile } from 'node-appwrite/file';
+import { SitesOptions, DeploymentOptions } from '../utils/types';
 
+/**
+ * Executes site operations for Appwrite (static site hosting)
+ * @param this - n8n execution context
+ * @param sites - Appwrite Sites service instance
+ * @param operation - Operation to perform (create, get, list, update, delete, createDeployment, getDeployment, listDeployments, updateDeployment, deleteDeployment)
+ * @param i - Current item index
+ * @returns Execution data with operation results
+ * @throws Error if operation is unknown or binary data is invalid
+ */
 export async function executeSitesOperation(
 	this: IExecuteFunctions,
 	sites: Sites,
@@ -14,7 +24,7 @@ export async function executeSitesOperation(
 		const name = this.getNodeParameter('name', i) as string;
 		const framework = this.getNodeParameter('framework', i) as Framework;
 		const buildRuntime = this.getNodeParameter('buildRuntime', i) as BuildRuntime;
-		const options = this.getNodeParameter('options', i, {}) as any;
+		const options = this.getNodeParameter('options', i, {}) as SitesOptions;
 
 		const response = await sites.create({
 			siteId,
@@ -48,7 +58,7 @@ export async function executeSitesOperation(
 		const siteId = this.getNodeParameter('siteId', i) as string;
 		const name = this.getNodeParameter('name', i) as string;
 		const framework = this.getNodeParameter('framework', i) as Framework;
-		const options = this.getNodeParameter('options', i, {}) as any;
+		const options = this.getNodeParameter('options', i, {}) as SitesOptions;
 
 		const response = await sites.update({
 			siteId,
@@ -85,7 +95,7 @@ export async function executeSitesOperation(
 
 		if (deploymentSource === 'upload') {
 			const codeArchiveField = this.getNodeParameter('codeArchiveField', i) as string;
-			const options = this.getNodeParameter('deploymentOptions', i, {}) as any;
+			const options = this.getNodeParameter('deploymentOptions', i, {}) as DeploymentOptions;
 
 			const items = this.getInputData();
 			const binaryData = items[i].binary?.[codeArchiveField];
@@ -102,7 +112,9 @@ export async function executeSitesOperation(
 
 			const response = await sites.createDeployment({
 				siteId,
-				code: file as any,
+				// Type assertion required: Appwrite SDK expects InputFile but TypeScript can't infer
+			// the correct type from InputFile.fromBuffer. This is safe as we validate binary data exists.
+			code: file as any,
 				activate,
 				installCommand: options.installCommand,
 				buildCommand: options.buildCommand,
@@ -170,7 +182,7 @@ export async function executeSitesOperation(
 		const siteId = this.getNodeParameter('siteId', i) as string;
 		const variableId = this.getNodeParameter('variableId', i) as string;
 		const key = this.getNodeParameter('key', i) as string;
-		const options = this.getNodeParameter('options', i, {}) as any;
+		const options = this.getNodeParameter('options', i, {}) as { value?: string; isSecret?: boolean };
 
 		const response = await sites.updateVariable({
 			siteId,

@@ -86,3 +86,43 @@ export function isAppwriteError(error: unknown): error is AppwriteError {
 		'message' in error
 	);
 }
+
+/**
+ * Sites creation and update options
+ */
+export interface SitesOptions {
+	description?: string;
+	buildCommand?: string;
+	installCommand?: string;
+	outputDirectory?: string;
+	adapter?: string;
+	customDomains?: string;
+	enabled?: boolean;
+	logging?: boolean;
+	timeout?: number;
+	installationId?: string;
+	providerRepositoryId?: string;
+	providerBranch?: string;
+	providerSilentMode?: boolean;
+	providerRootDirectory?: string;
+	specification?: string;
+	fallbackFile?: string;
+	buildRuntime?: string;
+}
+
+/**
+ * Deployment options
+ */
+export interface DeploymentOptions {
+	activate?: boolean;
+	entrypoint?: string;
+	commands?: string;
+	installCommand?: string;
+	buildCommand?: string;
+	outputDirectory?: string;
+}
+
+/**
+ * Index type for database indexes
+ */
+export type IndexType = 'key' | 'fulltext' | 'unique';

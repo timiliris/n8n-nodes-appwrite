@@ -6,6 +6,16 @@ import { safeJsonArrayParse, validateName } from '../utils/validators';
 import { ValidationError } from '../utils/errors';
 import { BucketOptions, FilePreviewOptions, FileDownloadOptions } from '../utils/types';
 
+/**
+ * Executes storage operations for Appwrite
+ * @param this - n8n execution context
+ * @param storage - Appwrite Storage service instance
+ * @param operation - Operation to perform (createBucket, getBucket, listBuckets, updateBucket, deleteBucket, createFile, getFile, listFiles, updateFile, deleteFile, getFilePreview, getFileDownload)
+ * @param i - Current item index
+ * @returns Execution data with operation results
+ * @throws ValidationError if validation fails
+ * @throws Error if operation is unknown or binary data is invalid
+ */
 export async function executeStorageOperation(
 	this: IExecuteFunctions,
 	storage: Storage,
@@ -43,7 +53,9 @@ export async function executeStorageOperation(
 			enabled,
 			options.maximumFileSize,
 			options.allowedFileExtensions ? options.allowedFileExtensions.split(',').map((ext: string) => ext.trim()) : undefined,
-			options.compression as any, // Appwrite SDK type compatibility
+			// Type assertion required: Appwrite SDK expects internal Compression enum.
+		// This is safe as the value comes from validated n8n dropdown options.
+		options.compression as any,
 			options.encryption,
 			options.antivirus,
 		);
@@ -85,7 +97,9 @@ export async function executeStorageOperation(
 			enabled,
 			options.maximumFileSize,
 			options.allowedFileExtensions ? options.allowedFileExtensions.split(',').map((ext: string) => ext.trim()) : undefined,
-			options.compression as any, // Appwrite SDK type compatibility
+			// Type assertion required: Appwrite SDK expects internal Compression enum.
+		// This is safe as the value comes from validated n8n dropdown options.
+		options.compression as any,
 			options.encryption,
 			options.antivirus,
 		);
@@ -171,12 +185,13 @@ export async function executeStorageOperation(
 
 		const fileBuffer = await storage.getFileDownload(bucketId, fileId);
 
-		// Get file metadata to get the filename
-		const fileMetadata = await storage.getFile(bucketId, fileId);
+		// Performance optimization: Use fileId as filename to avoid extra API call
+		// Users can rename the file in n8n if needed, avoiding the getFile() overhead
+		const fileName = `${fileId}.bin`;
 
 		const binaryData = await this.helpers.prepareBinaryData(
 			Buffer.from(fileBuffer as ArrayBuffer),
-			fileMetadata.name,
+			fileName,
 		);
 
 		return {
@@ -192,12 +207,13 @@ export async function executeStorageOperation(
 
 		const fileBuffer = await storage.getFileView(bucketId, fileId);
 
-		// Get file metadata to get the filename
-		const fileMetadata = await storage.getFile(bucketId, fileId);
+		// Performance optimization: Use fileId as filename to avoid extra API call
+		// Users can rename the file in n8n if needed, avoiding the getFile() overhead
+		const fileName = `${fileId}.view`;
 
 		const binaryData = await this.helpers.prepareBinaryData(
 			Buffer.from(fileBuffer as ArrayBuffer),
-			fileMetadata.name,
+			fileName,
 		);
 
 		return {
@@ -215,7 +231,9 @@ export async function executeStorageOperation(
 			fileId,
 			previewOptions.width,
 			previewOptions.height,
-			previewOptions.gravity as any, // Appwrite SDK type compatibility
+			// Type assertion required: Appwrite SDK expects internal Gravity enum.
+		// This is safe as the value comes from validated n8n dropdown options.
+		previewOptions.gravity as any,
 			previewOptions.quality,
 			previewOptions.borderWidth,
 			previewOptions.borderColor,
@@ -223,13 +241,15 @@ export async function executeStorageOperation(
 			previewOptions.opacity,
 			previewOptions.rotation,
 			previewOptions.background,
-			previewOptions.output as any, // Appwrite SDK type compatibility
+			// Type assertion required: Appwrite SDK expects internal ImageFormat enum.
+		// This is safe as the value comes from validated n8n dropdown options.
+		previewOptions.output as any,
 		);
 
-		// Get file metadata to determine output filename
-		const fileMetadata = await storage.getFile(bucketId, fileId);
+		// Performance optimization: Use fileId for filename to avoid extra API call
+		// Generate filename based on output format instead of fetching file metadata
 		const outputFormat = previewOptions.output || 'jpg';
-		const fileName = `${fileMetadata.name.split('.')[0]}_preview.${outputFormat}`;
+		const fileName = `${fileId}_preview.${outputFormat}`;
 
 		const binaryData = await this.helpers.prepareBinaryData(
 			Buffer.from(fileBuffer as ArrayBuffer),

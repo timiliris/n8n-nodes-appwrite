@@ -1,6 +1,15 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { Databases } from 'node-appwrite';
 
+/**
+ * Executes database operations for Appwrite
+ * @param this - n8n execution context
+ * @param databases - Appwrite Databases service instance
+ * @param operation - Operation to perform (create, get, list, update, delete)
+ * @param i - Current item index
+ * @returns Execution data with operation results
+ * @throws Error if operation is unknown or validation fails
+ */
 export async function executeDatabaseOperation(
 	this: IExecuteFunctions,
 	databases: Databases,

@@ -52,10 +52,12 @@ export class AppwriteHelper implements INodeType {
 
 				const errorData =
 					error instanceof Error
-						? { message: error.message, name: error.name, stack: error.stack }
+						? { message: error.message, name: error.name }
 						: { message: String(error) };
 
-				throw new NodeApiError(this.getNode(), errorData as any);
+				// Type assertion required: n8n NodeApiError accepts JsonObject but our errorData
+			// is a more specific type. This is safe as errorData always contains valid JSON.
+			throw new NodeApiError(this.getNode(), errorData as any);
 			}
 		}
 

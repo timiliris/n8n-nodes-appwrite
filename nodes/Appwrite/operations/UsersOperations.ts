@@ -1,6 +1,15 @@
 import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 import { Users } from 'node-appwrite';
 
+/**
+ * Executes user operations for Appwrite
+ * @param this - n8n execution context
+ * @param users - Appwrite Users service instance
+ * @param operation - Operation to perform (createUser, getUser, listUsers, updateUser, deleteUser, updateUserPreferences, getUserPreferences)
+ * @param i - Current item index
+ * @returns Execution data with operation results
+ * @throws Error if operation is unknown
+ */
 export async function executeUsersOperation(
 	this: IExecuteFunctions,
 	users: Users,
