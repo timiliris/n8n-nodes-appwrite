@@ -25,6 +25,48 @@ export const properties: INodeProperties[] = [
 				description: 'Build collection schema from attributes',
 				action: 'Build schema',
 			},
+			{
+				name: 'Permission Preset',
+				value: 'permissionPreset',
+				description: 'Generate common permission presets',
+				action: 'Generate permission preset',
+			},
+			{
+				name: 'Detect Permission Conflicts',
+				value: 'detectConflicts',
+				description: 'Find redundant or conflicting permissions',
+				action: 'Detect permission conflicts',
+			},
+			{
+				name: 'Generate ID',
+				value: 'generateId',
+				description: 'Generate unique IDs in various formats',
+				action: 'Generate ID',
+			},
+			{
+				name: 'Validate ID',
+				value: 'validateId',
+				description: 'Validate ID format and Appwrite constraints',
+				action: 'Validate ID',
+			},
+			{
+				name: 'Format Date/Time',
+				value: 'formatDateTime',
+				description: 'Format dates for Appwrite (ISO 8601, timestamps)',
+				action: 'Format date/time',
+			},
+			{
+				name: 'CSV to Documents',
+				value: 'csvToDocuments',
+				description: 'Convert CSV data to Appwrite document format',
+				action: 'Convert CSV to documents',
+			},
+			{
+				name: 'Extract File Metadata',
+				value: 'extractMetadata',
+				description: 'Extract metadata from binary files',
+				action: 'Extract file metadata',
+			},
 		],
 		default: 'buildPermissions',
 	},
@@ -647,5 +689,380 @@ export const properties: INodeProperties[] = [
 		default: '[]',
 		description: 'Array of attributes in JSON format',
 		placeholder: '[{"type": "string", "key": "name", "size": 255, "required": true}]',
+	},
+	// Permission Preset fields
+	{
+		displayName: 'Preset Name',
+		name: 'presetName',
+		type: 'options',
+		displayOptions: {
+			show: {
+				operation: ['permissionPreset'],
+			},
+		},
+		options: [
+			{
+				name: 'Public Read',
+				value: 'publicRead',
+				description: 'Anyone can read (read("any"))',
+			},
+			{
+				name: 'Public Read, Users Write',
+				value: 'publicReadUserWrite',
+				description: 'Public read, authenticated users can write',
+			},
+			{
+				name: 'Private',
+				value: 'private',
+				description: 'Only authenticated users can read and write',
+			},
+			{
+				name: 'User Owned',
+				value: 'userOwned',
+				description: 'Full CRUD for authenticated users',
+			},
+			{
+				name: 'Team Collaborative',
+				value: 'teamCollaborative',
+				description: 'Team members can collaborate',
+			},
+			{
+				name: 'Admin Only',
+				value: 'adminOnly',
+				description: 'Only admins can read and write',
+			},
+			{
+				name: 'Public Read, Admin Write',
+				value: 'publicReadAdminWrite',
+				description: 'Public read, only admins can write',
+			},
+			{
+				name: 'Guests Read',
+				value: 'guestsRead',
+				description: 'Only guests can read',
+			},
+		],
+		default: 'publicRead',
+		description: 'Select a permission preset',
+	},
+	// Detect Conflicts fields
+	{
+		displayName: 'Permissions (JSON Array)',
+		name: 'permissionsInput',
+		type: 'json',
+		displayOptions: {
+			show: {
+				operation: ['detectConflicts'],
+			},
+		},
+		default: '[]',
+		description: 'Array of permission strings to analyze',
+		placeholder: '["read(\\"any\\")", "read(\\"users\\")", "write(\\"users\\")"]',
+	},
+	// Generate ID fields
+	{
+		displayName: 'ID Format',
+		name: 'idFormat',
+		type: 'options',
+		displayOptions: {
+			show: {
+				operation: ['generateId'],
+			},
+		},
+		options: [
+			{
+				name: 'UUID v4',
+				value: 'uuid',
+				description: 'Standard UUID v4 (e.g., 550e8400-e29b-41d4-a716-446655440000)',
+			},
+			{
+				name: 'Nanoid',
+				value: 'nanoid',
+				description: 'URL-friendly unique ID (e.g., V1StGXR8_Z5jdHi6B-myT)',
+			},
+			{
+				name: 'Timestamp',
+				value: 'timestamp',
+				description: 'Timestamp-based ID (e.g., 1699876543210-abc123def)',
+			},
+			{
+				name: 'Slug',
+				value: 'slug',
+				description: 'URL-friendly slug from text (e.g., my-document-name)',
+			},
+			{
+				name: 'Short ID',
+				value: 'shortid',
+				description: 'Short alphanumeric ID (e.g., aBc123Xy)',
+			},
+			{
+				name: 'Custom Pattern',
+				value: 'custom',
+				description: 'Custom pattern with X as placeholders',
+			},
+		],
+		default: 'nanoid',
+		description: 'Format for the generated ID',
+	},
+	{
+		displayName: 'Length',
+		name: 'idLength',
+		type: 'number',
+		displayOptions: {
+			show: {
+				operation: ['generateId'],
+				idFormat: ['nanoid', 'shortid'],
+			},
+		},
+		default: 21,
+		description: 'Length of the generated ID',
+		typeOptions: {
+			minValue: 1,
+			maxValue: 36,
+		},
+	},
+	{
+		displayName: 'Text to Slugify',
+		name: 'idText',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['generateId'],
+				idFormat: ['slug'],
+			},
+		},
+		default: '',
+		description: 'Text to convert to a slug',
+		placeholder: 'My Document Name',
+	},
+	{
+		displayName: 'Custom Pattern',
+		name: 'idPattern',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['generateId'],
+				idFormat: ['custom'],
+			},
+		},
+		default: 'ID-XXXX',
+		description: 'Custom pattern (use X for random digits)',
+		placeholder: 'USER-XXXX-XXXX',
+	},
+	// Validate ID fields
+	{
+		displayName: 'ID to Validate',
+		name: 'idToValidate',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['validateId'],
+			},
+		},
+		default: '',
+		description: 'The ID to validate',
+		placeholder: 'my-document-id',
+	},
+	{
+		displayName: 'Validation Pattern',
+		name: 'validationPattern',
+		type: 'options',
+		displayOptions: {
+			show: {
+				operation: ['validateId'],
+			},
+		},
+		options: [
+			{
+				name: 'Appwrite Only',
+				value: 'none',
+				description: 'Only validate Appwrite constraints (36 chars, alphanumeric with .-_)',
+			},
+			{
+				name: 'UUID v4',
+				value: 'uuid',
+				description: 'Validate as UUID v4 format',
+			},
+			{
+				name: 'Nanoid',
+				value: 'nanoid',
+				description: 'Validate as Nanoid format (A-Z, a-z, 0-9, _, -)',
+			},
+			{
+				name: 'Slug',
+				value: 'slug',
+				description: 'Validate as URL-friendly slug',
+			},
+			{
+				name: 'Alphanumeric',
+				value: 'alphanumeric',
+				description: 'Validate as alphanumeric only',
+			},
+			{
+				name: 'Numeric',
+				value: 'numeric',
+				description: 'Validate as numeric only',
+			},
+		],
+		default: 'none',
+		description: 'Validation pattern to apply',
+	},
+	// Format Date/Time fields
+	{
+		displayName: 'Date Input',
+		name: 'dateInput',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['formatDateTime'],
+			},
+		},
+		default: '',
+		description: 'Input date (ISO string, timestamp, or Date object)',
+		placeholder: '2024-01-15T10:30:00Z or 1705315800000',
+	},
+	{
+		displayName: 'Output Format',
+		name: 'dateFormat',
+		type: 'options',
+		displayOptions: {
+			show: {
+				operation: ['formatDateTime'],
+			},
+		},
+		options: [
+			{
+				name: 'ISO 8601',
+				value: 'iso8601',
+				description: 'Full ISO 8601 format (2024-01-15T10:30:00.000Z)',
+			},
+			{
+				name: 'Date Only',
+				value: 'date',
+				description: 'Date only (2024-01-15)',
+			},
+			{
+				name: 'Time Only',
+				value: 'time',
+				description: 'Time only (10:30:00)',
+			},
+			{
+				name: 'Date Time',
+				value: 'datetime',
+				description: 'Date and time (2024-01-15 10:30:00)',
+			},
+			{
+				name: 'Timestamp (ms)',
+				value: 'timestamp',
+				description: 'Unix timestamp in milliseconds',
+			},
+			{
+				name: 'Unix Timestamp',
+				value: 'unix',
+				description: 'Unix timestamp in seconds',
+			},
+			{
+				name: 'Relative',
+				value: 'relative',
+				description: 'Relative time (e.g., "5 minutes ago")',
+			},
+		],
+		default: 'iso8601',
+		description: 'Output format for the date',
+	},
+	// CSV to Documents fields
+	{
+		displayName: 'CSV Input',
+		name: 'csvInput',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['csvToDocuments'],
+			},
+		},
+		typeOptions: {
+			rows: 10,
+		},
+		default: '',
+		description: 'CSV data to convert',
+		placeholder: 'name,email,age\nJohn Doe,john@example.com,30\nJane Smith,jane@example.com,25',
+	},
+	{
+		displayName: 'Auto-Detect Types',
+		name: 'autoDetectTypes',
+		type: 'boolean',
+		displayOptions: {
+			show: {
+				operation: ['csvToDocuments'],
+			},
+		},
+		default: true,
+		description: 'Whether to automatically detect and convert data types (numbers, booleans, dates)',
+	},
+	{
+		displayName: 'Generate IDs',
+		name: 'generateIds',
+		type: 'boolean',
+		displayOptions: {
+			show: {
+				operation: ['csvToDocuments'],
+			},
+		},
+		default: true,
+		description: 'Whether to generate unique IDs for each document',
+	},
+	{
+		displayName: 'ID Field',
+		name: 'idField',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['csvToDocuments'],
+				generateIds: [false],
+			},
+		},
+		default: '',
+		description: 'Name of the CSV field to use as document ID (if not generating IDs)',
+		placeholder: 'id',
+	},
+	{
+		displayName: 'Delimiter',
+		name: 'delimiter',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['csvToDocuments'],
+			},
+		},
+		default: ',',
+		description: 'CSV delimiter character',
+		placeholder: ',',
+	},
+	{
+		displayName: 'Field Mapping (JSON)',
+		name: 'fieldMapping',
+		type: 'json',
+		displayOptions: {
+			show: {
+				operation: ['csvToDocuments'],
+			},
+		},
+		default: '{}',
+		description: 'Map CSV column names to different field names',
+		placeholder: '{"old_name": "new_name", "email_address": "email"}',
+	},
+	// Extract Metadata fields
+	{
+		displayName: 'Binary Property Name',
+		name: 'binaryPropertyName',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['extractMetadata'],
+			},
+		},
+		default: 'data',
+		description: 'Name of the binary property containing the file',
+		placeholder: 'data',
 	},
 ];
