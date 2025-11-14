@@ -3,6 +3,14 @@ import { Databases } from 'node-appwrite';
 import { getDatabaseParameters, getRequiredParameter } from '../utils/helpers';
 import { safeJsonParse, safeJsonArrayParse } from '../utils/validators';
 import { ValidationError } from '../utils/errors';
+import {
+	processBatch,
+	validateBatchCreateItems,
+	validateBatchUpdateItems,
+	validateBatchDeleteItems,
+	formatBatchResult,
+	BatchOptions,
+} from '../utils/batch';
 
 /**
  * Executes document operations for Appwrite
@@ -87,6 +95,142 @@ export async function executeDocumentOperation(
 		const documentId = getRequiredParameter(this, 'documentId', i);
 		await databases.deleteDocument(databaseId, collectionId, documentId);
 		return { json: { success: true, documentId } };
+	} else if (operation === 'batchCreate') {
+		// Get batch items
+		const itemsStr = this.getNodeParameter('batchItems', i) as string;
+		const itemsResult = safeJsonParse(itemsStr, 'batch items');
+		if (!itemsResult.success) {
+			throw new ValidationError(itemsResult.error);
+		}
+
+		// Validate batch items
+		const items = validateBatchCreateItems(itemsResult.data);
+
+		// Get batch options
+		const continueOnError = this.getNodeParameter('continueOnError', i, true) as boolean;
+		const batchSize = this.getNodeParameter('batchSize', i, 10) as number;
+		const parallel = this.getNodeParameter('parallel', i, false) as boolean;
+
+		const batchOptions: BatchOptions = {
+			continueOnError,
+			batchSize,
+			parallel,
+			maxConcurrency: 5,
+		};
+
+		// Process batch
+		const batchResult = await processBatch(
+			items,
+			async (item) => {
+				return await databases.createDocument(
+					databaseId,
+					collectionId,
+					item.documentId || 'unique()',
+					item.data,
+					item.permissions || [],
+				);
+			},
+			batchOptions,
+		);
+
+		// Format and return result
+		const { summary, details } = formatBatchResult(batchResult);
+		return {
+			json: {
+				...batchResult,
+				summary,
+				details,
+			},
+		};
+	} else if (operation === 'batchUpdate') {
+		// Get batch items
+		const itemsStr = this.getNodeParameter('batchItems', i) as string;
+		const itemsResult = safeJsonParse(itemsStr, 'batch items');
+		if (!itemsResult.success) {
+			throw new ValidationError(itemsResult.error);
+		}
+
+		// Validate batch items
+		const items = validateBatchUpdateItems(itemsResult.data);
+
+		// Get batch options
+		const continueOnError = this.getNodeParameter('continueOnError', i, true) as boolean;
+		const batchSize = this.getNodeParameter('batchSize', i, 10) as number;
+		const parallel = this.getNodeParameter('parallel', i, false) as boolean;
+
+		const batchOptions: BatchOptions = {
+			continueOnError,
+			batchSize,
+			parallel,
+			maxConcurrency: 5,
+		};
+
+		// Process batch
+		const batchResult = await processBatch(
+			items,
+			async (item) => {
+				return await databases.updateDocument(
+					databaseId,
+					collectionId,
+					item.documentId,
+					item.data,
+					item.permissions || [],
+				);
+			},
+			batchOptions,
+		);
+
+		// Format and return result
+		const { summary, details } = formatBatchResult(batchResult);
+		return {
+			json: {
+				...batchResult,
+				summary,
+				details,
+			},
+		};
+	} else if (operation === 'batchDelete') {
+		// Get batch items
+		const itemsStr = this.getNodeParameter('batchItems', i) as string;
+		const itemsResult = safeJsonParse(itemsStr, 'batch items');
+		if (!itemsResult.success) {
+			throw new ValidationError(itemsResult.error);
+		}
+
+		// Validate batch items
+		const items = validateBatchDeleteItems(itemsResult.data);
+
+		// Get batch options
+		const continueOnError = this.getNodeParameter('continueOnError', i, true) as boolean;
+		const batchSize = this.getNodeParameter('batchSize', i, 10) as number;
+		const parallel = this.getNodeParameter('parallel', i, false) as boolean;
+
+		const batchOptions: BatchOptions = {
+			continueOnError,
+			batchSize,
+			parallel,
+			maxConcurrency: 5,
+		};
+
+		// Process batch
+		const batchResult = await processBatch(
+			items,
+			async (item) => {
+				await databases.deleteDocument(databaseId, collectionId, item.documentId);
+				return { success: true, documentId: item.documentId };
+			},
+			batchOptions,
+		);
+
+		// Format and return result
+		const { summary, details } = formatBatchResult(batchResult);
+		return {
+			json: {
+				...batchResult,
+				summary,
+				details,
+			},
+		};
 	}
 
 	throw new Error(`Unknown document operation: ${operation}`);

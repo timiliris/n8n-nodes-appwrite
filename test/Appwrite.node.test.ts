@@ -88,14 +88,15 @@ describe('Appwrite Node', () => {
 
 			expect(usersOperations).toBeDefined();
 			const options = (usersOperations as any).options;
-			expect(options).toHaveLength(5);
-			expect(options.map((opt: any) => opt.value)).toEqual([
-				'createUser',
-				'deleteUser',
-				'getUser',
-				'listUsers',
-				'updateUser',
-			]);
+			// Updated to 19 operations after Users service enhancement in v0.12.0
+			expect(options).toHaveLength(19);
+			// Verify core CRUD operations exist
+			const operations = options.map((opt: any) => opt.value);
+			expect(operations).toContain('createUser');
+			expect(operations).toContain('deleteUser');
+			expect(operations).toContain('getUser');
+			expect(operations).toContain('listUsers');
+			expect(operations).toContain('updateUser');
 		});
 	});
 

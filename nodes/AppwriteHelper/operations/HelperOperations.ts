@@ -1,11 +1,71 @@
-import { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
-import { safeJsonParse, escapeQueryValue } from '../../Appwrite/utils/validators';
+import { IExecuteFunctions, INodeExecutionData, NodeOperationError } from 'n8n-workflow';
+import { safeJsonParse, escapeQueryValue, validateQuery, formatQueryPreview } from '../../Appwrite/utils/validators';
 import type {
 	PermissionsList,
 	QueriesList,
+	QueryItem,
 	SchemaAttribute,
 	SchemaAttributesList,
 } from '../types/HelperTypes';
+
+/**
+ * Returns a pre-built query template
+ * @param templateName - Name of the template
+ * @returns Array of query items
+ */
+function getQueryTemplate(templateName: string): QueryItem[] {
+	switch (templateName) {
+		case 'activeUsers':
+			return [
+				{
+					queryType: 'equal',
+					attribute: 'status',
+					value: 'active',
+				},
+			];
+		case 'recentDocuments':
+			return [
+				{
+					queryType: 'orderDesc',
+					attribute: '$createdAt',
+				},
+				{
+					queryType: 'limit',
+					limitValue: 25,
+				},
+			];
+		case 'searchName':
+			return [
+				{
+					queryType: 'search',
+					attribute: 'name',
+					value: '',
+				},
+			];
+		case 'dateRange':
+			return [
+				{
+					queryType: 'between',
+					attribute: '$createdAt',
+					startValue: '',
+					endValue: '',
+				},
+			];
+		case 'paginatedResults':
+			return [
+				{
+					queryType: 'limit',
+					limitValue: 25,
+				},
+				{
+					queryType: 'offset',
+					offsetValue: 0,
+				},
+			];
+		default:
+			return [];
+	}
+}
 
 /**
  * Executes helper operations for building Appwrite queries, permissions, and schemas
@@ -54,13 +114,65 @@ export async function executeHelperOperation(
 			},
 		};
 	} else if (operation === 'buildQuery') {
-		const queriesList = this.getNodeParameter('queriesList', i, {}) as QueriesList;
-		const queries = queriesList.queries || [];
+		const queryTemplate = this.getNodeParameter('queryTemplate', i, 'custom') as string;
+		let queries: QueryItem[] = [];
+
+		// Handle pre-built templates
+		if (queryTemplate !== 'custom') {
+			const baseQueries = getQueryTemplate(queryTemplate);
+
+			// Customize templates with user input
+			queries = baseQueries.map((query) => {
+				const customQuery = { ...query };
+
+				// Customize based on template type
+				if (queryTemplate === 'searchName' && query.queryType === 'search') {
+					const searchTerm = this.getNodeParameter('templateSearchTerm', i, '') as string;
+					customQuery.value = searchTerm;
+				} else if (queryTemplate === 'dateRange' && query.queryType === 'between') {
+					const startDate = this.getNodeParameter('templateStartDate', i, '') as string;
+					const endDate = this.getNodeParameter('templateEndDate', i, '') as string;
+					customQuery.startValue = startDate;
+					customQuery.endValue = endDate;
+				} else if ((queryTemplate === 'paginatedResults' || queryTemplate === 'recentDocuments') && query.queryType === 'limit') {
+					const pageSize = this.getNodeParameter('templatePageSize', i, 25) as number;
+					customQuery.limitValue = pageSize;
+				} else if (queryTemplate === 'paginatedResults' && query.queryType === 'offset') {
+					const pageNumber = this.getNodeParameter('templatePageNumber', i, 1) as number;
+					const pageSize = this.getNodeParameter('templatePageSize', i, 25) as number;
+					customQuery.offsetValue = (pageNumber - 1) * pageSize;
+				}
+
+				return customQuery;
+			});
+		} else {
+			const queriesList = this.getNodeParameter('queriesList', i, {}) as QueriesList;
+			queries = queriesList.queries || [];
+		}
 
 		const result: string[] = [];
+		const validationErrors: string[] = [];
 
-		for (const query of queries) {
+		for (let idx = 0; idx < queries.length; idx++) {
+			const query = queries[idx];
 			const { queryType, attribute = '', value = '', values = '', startValue = '', endValue = '', limitValue = 25, offsetValue = 0 } = query;
+
+			// Validate query before building
+			const validation = validateQuery({
+				queryType,
+				attribute,
+				value,
+				values,
+				startValue,
+				endValue,
+				limitValue,
+				offsetValue,
+			});
+
+			if (!validation.valid) {
+				validationErrors.push(`Query ${idx + 1} (${queryType}): ${validation.error}`);
+				continue;
+			}
 
 			let queryString: string;
 
@@ -119,17 +231,26 @@ export async function executeHelperOperation(
 					queryString = `Query.offset(${offsetValue})`;
 					break;
 				default:
-					throw new Error(`Unknown query type: ${queryType}`);
+					throw new NodeOperationError(this.getNode(), `Unknown query type: ${queryType}`);
 			}
 
 			result.push(queryString);
+		}
+
+		// If there are validation errors, include them in the output
+		if (validationErrors.length > 0) {
+			throw new NodeOperationError(
+				this.getNode(),
+				`Query validation failed:\n${validationErrors.join('\n')}`,
+			);
 		}
 
 		return {
 			json: {
 				queries: result,
 				count: result.length,
-				formatted: `[\n  ${result.join(',\n  ')}\n]`,
+				formatted: formatQueryPreview(result),
+				preview: formatQueryPreview(result),
 			},
 		};
 	} else if (operation === 'buildSchema') {

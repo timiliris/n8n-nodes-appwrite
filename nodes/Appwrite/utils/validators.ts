@@ -262,3 +262,138 @@ export function escapeQueryValue(value: string): string {
 	// Escape quotes and backslashes
 	return value.replace(/["\\]/g, '\\$&');
 }
+
+/**
+ * Validates a query attribute name
+ */
+export function validateQueryAttribute(attribute: string): ValidationResult {
+	if (!attribute || typeof attribute !== 'string') {
+		return {
+			valid: false,
+			error: 'Attribute name is required',
+		};
+	}
+
+	if (attribute.length > 128) {
+		return {
+			valid: false,
+			error: 'Attribute name must not exceed 128 characters',
+		};
+	}
+
+	// Valid attribute names: alphanumeric, underscore, dot (for nested), $ (for Appwrite system attributes)
+	if (!/^[a-zA-Z0-9_.$]+$/.test(attribute)) {
+		return {
+			valid: false,
+			error: 'Attribute name can only contain letters, numbers, underscores, dots, and $ (for system attributes)',
+		};
+	}
+
+	return { valid: true };
+}
+
+/**
+ * Validates a query configuration
+ */
+export interface QueryValidation {
+	queryType: string;
+	attribute?: string;
+	value?: string;
+	values?: string;
+	startValue?: string;
+	endValue?: string;
+	limitValue?: number;
+	offsetValue?: number;
+}
+
+export function validateQuery(query: QueryValidation): ValidationResult {
+	const { queryType, attribute, value, values, startValue, endValue, limitValue, offsetValue } = query;
+
+	// Queries that require an attribute
+	const attributeRequired = ['equal', 'notEqual', 'lessThan', 'lessThanEqual', 'greaterThan',
+		'greaterThanEqual', 'search', 'isNull', 'isNotNull', 'between', 'startsWith', 'endsWith',
+		'orderDesc', 'orderAsc'];
+
+	if (attributeRequired.includes(queryType)) {
+		if (!attribute) {
+			return {
+				valid: false,
+				error: `Attribute is required for ${queryType} query`,
+			};
+		}
+
+		const attrValidation = validateQueryAttribute(attribute);
+		if (!attrValidation.valid) {
+			return attrValidation;
+		}
+	}
+
+	// Queries that require a value
+	const valueRequired = ['equal', 'notEqual', 'lessThan', 'lessThanEqual', 'greaterThan',
+		'greaterThanEqual', 'search', 'startsWith', 'endsWith'];
+
+	if (valueRequired.includes(queryType) && !value) {
+		return {
+			valid: false,
+			error: `Value is required for ${queryType} query`,
+		};
+	}
+
+	// Between query requires both start and end values
+	if (queryType === 'between') {
+		if (!startValue || !endValue) {
+			return {
+				valid: false,
+				error: 'Both start and end values are required for between query',
+			};
+		}
+	}
+
+	// Select query requires values
+	if (queryType === 'select' && !values) {
+		return {
+			valid: false,
+			error: 'Values are required for select query (comma-separated attribute names)',
+		};
+	}
+
+	// Limit validation
+	if (queryType === 'limit') {
+		if (limitValue === undefined || limitValue === null) {
+			return {
+				valid: false,
+				error: 'Limit value is required',
+			};
+		}
+		const limitCheck = validateNumberRange(limitValue, 1, 5000, 'Limit');
+		if (!limitCheck.valid) {
+			return limitCheck;
+		}
+	}
+
+	// Offset validation
+	if (queryType === 'offset') {
+		if (offsetValue === undefined || offsetValue === null) {
+			return {
+				valid: false,
+				error: 'Offset value is required',
+			};
+		}
+		const offsetCheck = validateNumberRange(offsetValue, 0, undefined, 'Offset');
+		if (!offsetCheck.valid) {
+			return offsetCheck;
+		}
+	}
+
+	return { valid: true };
+}
+
+/**
+ * Formats a query array for preview display
+ */
+export function formatQueryPreview(queries: string[]): string {
+	if (!queries || queries.length === 0) {
+		return '[]';
+	}
+	return `[\n  ${queries.join(',\n  ')}\n]`;
+}

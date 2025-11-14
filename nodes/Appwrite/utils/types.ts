@@ -126,3 +126,56 @@ export interface DeploymentOptions {
  * Index type for database indexes
  */
 export type IndexType = 'key' | 'fulltext' | 'unique';
+
+/**
+ * Functions creation and update options
+ */
+export interface FunctionOptions {
+	execute?: string;
+	events?: string;
+	schedule?: string;
+	timeout?: number;
+	enabled?: boolean;
+	logging?: boolean;
+	entrypoint?: string;
+	commands?: string;
+	installationId?: string;
+	providerRepositoryId?: string;
+	providerBranch?: string;
+	providerSilentMode?: boolean;
+	providerRootDirectory?: string;
+	templateRepository?: string;
+	templateOwner?: string;
+	templateRootDirectory?: string;
+	templateBranch?: string;
+}
+
+/**
+ * Execution options for function execution
+ */
+export interface ExecutionOptions {
+	body?: string;
+	async?: boolean;
+	path?: string;
+	method?: string;
+	headers?: string;
+}
+
+/**
+ * Variable options for environment variables
+ */
+export interface VariableOptions {
+	value?: string;
+}
+
+/**
+ * Batch operations types - re-exported from batch.ts
+ */
+export type {
+	BatchOptions,
+	BatchItemResult,
+	BatchResult,
+	BatchCreateItem,
+	BatchUpdateItem,
+	BatchDeleteItem,
+} from './batch';

@@ -5,17 +5,22 @@ import {
 	INodeTypeDescription,
 	NodeApiError,
 } from 'n8n-workflow';
-import { Client, Databases, Sites, Storage, Teams, Users } from 'node-appwrite';
+import { Account, Avatars, Client, Databases, Functions, Locale, Messaging, Sites, Storage, Teams, Users } from 'node-appwrite';
 
 // Import all property descriptions
 import { properties } from './descriptions';
 
 // Import all operation handlers
+import { executeAccountOperation } from './operations/AccountOperations';
 import { executeDatabaseOperation } from './operations/DatabaseOperations';
 import { executeAttributeOperation } from './operations/AttributeOperations';
+import { executeAvatarsOperation } from './operations/AvatarsOperations';
 import { executeIndexOperation } from './operations/IndexOperations';
 import { executeCollectionOperation } from './operations/CollectionOperations';
 import { executeDocumentOperation } from './operations/DocumentOperations';
+import { executeFunctionsOperation } from './operations/FunctionsOperations';
+import { executeLocaleOperation } from './operations/LocaleOperations';
+import { executeMessagingOperation } from './operations/MessagingOperations';
 import { executeSitesOperation } from './operations/SitesOperations';
 import { executeStorageOperation } from './operations/StorageOperations';
 import { executeTeamsOperation } from './operations/TeamsOperations';
@@ -63,9 +68,14 @@ export class Appwrite implements INodeType {
 		const resource = this.getNodeParameter('resource', 0) as string;
 
 		// Initialize service instances once before loop for better performance
+		const account = resource === 'account' ? new Account(client) : null;
 		const databases = ['database', 'attribute', 'index', 'collection', 'document'].includes(resource)
 			? new Databases(client)
 			: null;
+		const avatars = resource === 'avatars' ? new Avatars(client) : null;
+		const functions = resource === 'functions' ? new Functions(client) : null;
+		const locale = resource === 'locale' ? new Locale(client) : null;
+		const messaging = resource === 'messaging' ? new Messaging(client) : null;
 		const sites = resource === 'sites' ? new Sites(client) : null;
 		const storage = resource === 'storage' ? new Storage(client) : null;
 		const teams = resource === 'teams' ? new Teams(client) : null;
@@ -79,16 +89,26 @@ export class Appwrite implements INodeType {
 				// Route to appropriate operation handler using pre-initialized instances
 				// Wrap each operation with retry and timeout logic
 				const result = await withRetryAndTimeout(async () => {
-					if (resource === 'database' && databases) {
+					if (resource === 'account' && account) {
+						return await executeAccountOperation.call(this, account, operation, i);
+					} else if (resource === 'database' && databases) {
 						return await executeDatabaseOperation.call(this, databases, operation, i);
 					} else if (resource === 'attribute' && databases) {
 						return await executeAttributeOperation.call(this, databases, operation, i);
+					} else if (resource === 'avatars' && avatars) {
+						return await executeAvatarsOperation.call(this, avatars, operation, i);
 					} else if (resource === 'index' && databases) {
 						return await executeIndexOperation.call(this, databases, operation, i);
 					} else if (resource === 'collection' && databases) {
 						return await executeCollectionOperation.call(this, databases, operation, i);
 					} else if (resource === 'document' && databases) {
 						return await executeDocumentOperation.call(this, databases, operation, i);
+					} else if (resource === 'functions' && functions) {
+						return await executeFunctionsOperation.call(this, functions, operation, i);
+					} else if (resource === 'locale' && locale) {
+						return await executeLocaleOperation.call(this, locale, operation);
+					} else if (resource === 'messaging' && messaging) {
+						return await executeMessagingOperation.call(this, messaging, operation, i);
 					} else if (resource === 'sites' && sites) {
 						return await executeSitesOperation.call(this, sites, operation, i);
 					} else if (resource === 'storage' && storage) {
