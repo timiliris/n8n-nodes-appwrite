@@ -67,6 +67,12 @@ export const properties: INodeProperties[] = [
 				description: 'Extract metadata from binary files',
 				action: 'Extract file metadata',
 			},
+			{
+				name: 'AI Filter Items',
+				value: 'aiFilterItems',
+				description: 'Filter a list of items using AI with preset or custom prompts',
+				action: 'Filter items with AI',
+			},
 		],
 		default: 'buildPermissions',
 	},
@@ -1064,5 +1070,258 @@ export const properties: INodeProperties[] = [
 		default: 'data',
 		description: 'Name of the binary property containing the file',
 		placeholder: 'data',
+	},
+	// AI Filter Items fields
+	{
+		displayName: 'Items to Filter',
+		name: 'itemsInput',
+		type: 'json',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+			},
+		},
+		default: '[]',
+		description: 'Array of items to filter (can be objects or strings)',
+		placeholder: '[{"name": "John", "age": 30}, {"name": "Jane", "age": 25}]',
+		typeOptions: {
+			rows: 10,
+		},
+	},
+	{
+		displayName: 'Filter Mode',
+		name: 'filterMode',
+		type: 'options',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+			},
+		},
+		options: [
+			{
+				name: 'Preset Filter',
+				value: 'preset',
+				description: 'Use a pre-defined filter template',
+			},
+			{
+				name: 'Custom Prompt',
+				value: 'custom',
+				description: 'Write a custom filtering prompt',
+			},
+		],
+		default: 'preset',
+		description: 'Choose between preset filters or custom prompt',
+	},
+	{
+		displayName: 'Preset Filter',
+		name: 'presetFilter',
+		type: 'options',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+				filterMode: ['preset'],
+			},
+		},
+		options: [
+			{
+				name: 'Keep Valid Items',
+				value: 'validItems',
+				description: 'Remove invalid, incomplete, or malformed items',
+			},
+			{
+				name: 'Remove Duplicates',
+				value: 'removeDuplicates',
+				description: 'Keep only unique items (based on AI semantic comparison)',
+			},
+			{
+				name: 'Keep Complete Records',
+				value: 'completeRecords',
+				description: 'Remove items with missing or empty required fields',
+			},
+			{
+				name: 'Filter by Quality',
+				value: 'qualityFilter',
+				description: 'Keep only high-quality items (well-formatted, meaningful data)',
+			},
+			{
+				name: 'Remove Test Data',
+				value: 'removeTestData',
+				description: 'Remove test/dummy data (e.g., "test@example.com", "John Doe")',
+			},
+			{
+				name: 'Keep Active Items',
+				value: 'activeItems',
+				description: 'Keep only active/enabled items (remove inactive, disabled, archived)',
+			},
+			{
+				name: 'Filter by Relevance',
+				value: 'relevanceFilter',
+				description: 'Keep items relevant to a specific topic or context',
+			},
+		],
+		default: 'validItems',
+		description: 'Select a preset filter',
+	},
+	{
+		displayName: 'Relevance Context',
+		name: 'relevanceContext',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+				filterMode: ['preset'],
+				presetFilter: ['relevanceFilter'],
+			},
+		},
+		default: '',
+		description: 'Context or topic for relevance filtering',
+		placeholder: 'e.g., "technology", "sales leads", "recent events"',
+	},
+	{
+		displayName: 'Custom Filter Prompt',
+		name: 'customPrompt',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+				filterMode: ['custom'],
+			},
+		},
+		typeOptions: {
+			rows: 5,
+		},
+		default: '',
+		description: 'Custom prompt to filter items. The AI will keep items that match your criteria.',
+		placeholder: 'Keep only items where the price is less than $100 and the status is "in stock"',
+	},
+	{
+		displayName: 'AI Provider',
+		name: 'aiProvider',
+		type: 'options',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+			},
+		},
+		options: [
+			{
+				name: 'OpenAI',
+				value: 'openai',
+				description: 'Use OpenAI models (GPT-4, GPT-3.5)',
+			},
+			{
+				name: 'Anthropic',
+				value: 'anthropic',
+				description: 'Use Anthropic Claude models',
+			},
+			{
+				name: 'Google',
+				value: 'google',
+				description: 'Use Google Gemini models',
+			},
+		],
+		default: 'openai',
+		description: 'AI provider to use for filtering',
+	},
+	{
+		displayName: 'API Key',
+		name: 'apiKey',
+		type: 'string',
+		typeOptions: {
+			password: true,
+		},
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+			},
+		},
+		default: '',
+		required: true,
+		description: 'API key for the selected AI provider. Can also be set via environment variable (OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY).',
+		placeholder: 'sk-...',
+	},
+	{
+		displayName: 'Model',
+		name: 'aiModel',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+				aiProvider: ['openai'],
+			},
+		},
+		default: 'gpt-4-turbo-preview',
+		description: 'OpenAI model to use',
+		placeholder: 'gpt-4-turbo-preview, gpt-3.5-turbo',
+	},
+	{
+		displayName: 'Model',
+		name: 'aiModel',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+				aiProvider: ['anthropic'],
+			},
+		},
+		default: 'claude-3-5-sonnet-20241022',
+		description: 'Anthropic Claude model to use',
+		placeholder: 'claude-3-5-sonnet-20241022, claude-3-opus-20240229',
+	},
+	{
+		displayName: 'Model',
+		name: 'aiModel',
+		type: 'string',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+				aiProvider: ['google'],
+			},
+		},
+		default: 'gemini-pro',
+		description: 'Google Gemini model to use',
+		placeholder: 'gemini-pro, gemini-pro-vision',
+	},
+	{
+		displayName: 'Return Mode',
+		name: 'returnMode',
+		type: 'options',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+			},
+		},
+		options: [
+			{
+				name: 'Filtered Items Only',
+				value: 'filtered',
+				description: 'Return only items that match the filter',
+			},
+			{
+				name: 'With Statistics',
+				value: 'withStats',
+				description: 'Return filtered items + statistics (count, removed count, reasoning)',
+			},
+			{
+				name: 'Both Filtered and Removed',
+				value: 'both',
+				description: 'Return both filtered items and removed items separately',
+			},
+		],
+		default: 'withStats',
+		description: 'What to return in the output',
+	},
+	{
+		displayName: 'Explain Decisions',
+		name: 'explainDecisions',
+		type: 'boolean',
+		displayOptions: {
+			show: {
+				operation: ['aiFilterItems'],
+				returnMode: ['withStats', 'both'],
+			},
+		},
+		default: false,
+		description: 'Whether to include AI explanations for why items were kept/removed',
 	},
 ];

@@ -77,7 +77,7 @@ This node supports the following Appwrite services:
 
 ### Helper Utilities
 
-The **Appwrite Helper** node provides 10 utility operations to simplify common tasks:
+The **Appwrite Helper** node provides 11 utility operations to simplify common tasks:
 
 | Operation | Description | Use Case |
 | --- | --- | --- |
@@ -91,6 +91,7 @@ The **Appwrite Helper** node provides 10 utility operations to simplify common t
 | **Format Date/Time** | Convert dates to ISO 8601, timestamps, relative time | Format dates correctly for Appwrite queries |
 | **CSV to Documents** | Convert CSV to document format with auto-type detection | Bulk import data from CSV files |
 | **Extract File Metadata** | Get MIME type, size, extension from binary files | Validate files before upload |
+| **AI Filter Items** | Filter lists using AI with 7 preset filters or custom prompts | Intelligently filter data (remove duplicates, test data, invalid items) |
 
 #### Helper Benefits
 
@@ -376,6 +377,62 @@ In n8n, create new Appwrite API credentials with:
      }
    }
    ```
+
+### Example 16: AI Filter Items
+
+**Prerequisites**: API key for your chosen AI provider (OpenAI, Anthropic, or Google).
+
+1. Add an **Appwrite Helper** node
+2. Choose **Operation**: `AI Filter Items`
+3. Enter items to filter:
+   ```json
+   [
+     {"name": "John Doe", "email": "john@company.com", "status": "active"},
+     {"name": "Test User", "email": "test@example.com", "status": "inactive"},
+     {"name": "Jane Smith", "email": "jane@company.com", "status": "active"},
+     {"name": "Lorem Ipsum", "email": "lorem@test.com", "status": "active"}
+   ]
+   ```
+4. Choose **Filter Mode**: `Preset Filter`
+5. Select **Preset Filter**: `Remove Test Data`
+6. Choose **AI Provider**: `OpenAI` (or `Anthropic`, `Google`)
+7. Enter **API Key**: Your API key (or set via environment variable)
+8. Enter **Model**: `gpt-4-turbo-preview` (or model of your choice)
+9. Select **Return Mode**: `With Statistics`
+10. Output:
+    ```json
+    {
+      "items": [
+        {"name": "John Doe", "email": "john@company.com", "status": "active"},
+        {"name": "Jane Smith", "email": "jane@company.com", "status": "active"}
+      ],
+      "stats": {
+        "total": 4,
+        "kept": 2,
+        "removed": 2,
+        "keepPercentage": 50
+      }
+    }
+    ```
+
+**Supported AI Providers**:
+- **OpenAI**: GPT-4, GPT-3.5 Turbo (requires `OPENAI_API_KEY`)
+- **Anthropic**: Claude 3.5 Sonnet, Opus, Haiku (requires `ANTHROPIC_API_KEY`)
+- **Google**: Gemini Pro, Gemini Pro Vision (requires `GOOGLE_API_KEY`)
+
+**Available Preset Filters**:
+- **Keep Valid Items**: Remove invalid/malformed items
+- **Remove Duplicates**: AI-powered semantic duplicate detection
+- **Keep Complete Records**: Remove items with missing fields
+- **Filter by Quality**: Keep only high-quality, well-formatted data
+- **Remove Test Data**: Remove test/dummy data (e.g., "test@example.com")
+- **Keep Active Items**: Remove inactive/disabled/archived items
+- **Filter by Relevance**: Keep items relevant to a specific topic
+
+**Custom Prompts**: Switch to "Custom Prompt" mode to write your own filtering criteria:
+```
+Keep only items where the price is less than $100 and the status is "in stock"
+```
 
 ## Development
 

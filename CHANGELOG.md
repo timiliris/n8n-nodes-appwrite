@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2025-01-15
+
+### Added - AI-Powered Filtering
+
+#### New Helper Operation
+- **AI Filter Items** - Intelligent list filtering using AI
+  - **Multi-Provider Support**: Choose from OpenAI, Anthropic, or Google
+  - 7 preset filters (Remove Duplicates, Remove Test Data, Keep Valid Items, etc.)
+  - Custom prompt support for flexible filtering criteria
+  - Multiple return modes (Filtered Only, With Statistics, Both Filtered and Removed)
+  - Optional AI explanations for filtering decisions
+  - Smart semantic analysis for duplicate detection
+  - Context-aware relevance filtering
+
+### Features
+- **AI Integration**: Support for multiple AI providers
+  - **OpenAI**: GPT-4, GPT-3.5 Turbo
+  - **Anthropic**: Claude 3.5 Sonnet, Opus, Haiku
+  - **Google**: Gemini Pro, Gemini Pro Vision
+- **Preset Filters**: 7 common filtering scenarios ready to use
+- **Custom Prompts**: Write natural language filtering criteria
+- **Statistics**: Track filtering effectiveness with detailed stats
+- **Explanations**: Optional AI reasoning for each filtering decision
+- **Flexible Authentication**: API key via node parameter or environment variable
+
+### Use Cases
+- Remove test/dummy data from production datasets
+- Semantic duplicate detection (goes beyond exact matches)
+- Filter incomplete or invalid records
+- Quality control for imported data
+- Context-based relevance filtering
+- Clean up lists before bulk operations
+
+### Requirements
+- API key for your chosen provider:
+  - **OpenAI**: `OPENAI_API_KEY` from [platform.openai.com](https://platform.openai.com)
+  - **Anthropic**: `ANTHROPIC_API_KEY` from [console.anthropic.com](https://console.anthropic.com)
+  - **Google**: `GOOGLE_API_KEY` from [console.cloud.google.com](https://console.cloud.google.com)
+
+### Statistics
+- **Total Helper Operations**: 10 → 11 (+10%)
+- **New Tests**: +3 tests for AI filtering
+- **Documentation**: Added Example 16 with preset filter descriptions
+
 ## [0.13.0] - 2025-01-14
 
 ### Added - Helper Utilities Update

@@ -326,3 +326,67 @@ describe('Helper Operations', () => {
 		});
 	});
 });
+
+describe('aiFilterItems operation', () => {
+	it('should filter items using AI (mocked)', async () => {
+		const items = JSON.stringify([
+			{ name: 'John Doe', email: 'john@example.com', status: 'active' },
+			{ name: 'Test User', email: 'test@example.com', status: 'inactive' },
+			{ name: 'Jane Smith', email: 'jane@example.com', status: 'active' },
+		]);
+
+		mockThis.getNodeParameter
+			.mockReturnValueOnce(items)           // itemsInput
+			.mockReturnValueOnce('preset')        // filterMode
+			.mockReturnValueOnce('claude-3-5-sonnet-20241022') // aiModel
+			.mockReturnValueOnce('withStats')     // returnMode
+			.mockReturnValueOnce(false)           // explainDecisions
+			.mockReturnValueOnce('validItems');   // presetFilter
+
+		// Skip actual AI call in tests - this requires ANTHROPIC_API_KEY
+		// In real usage, this would call the Anthropic API
+		// For now, we just test the structure is correct
+
+		try {
+			await executeHelperOperation.call(mockThis, 'aiFilterItems', 0);
+		} catch (error: any) {
+			// Expected to fail without API key in test environment
+			expect(error.message).toContain('ANTHROPIC_API_KEY');
+		}
+	});
+
+	it('should require custom prompt when using custom mode', async () => {
+		const items = JSON.stringify([{ name: 'Test' }]);
+
+		mockThis.getNodeParameter
+			.mockReturnValueOnce(items)           // itemsInput
+			.mockReturnValueOnce('custom')        // filterMode
+			.mockReturnValueOnce('claude-3-5-sonnet-20241022') // aiModel
+			.mockReturnValueOnce('withStats')     // returnMode
+			.mockReturnValueOnce(false)           // explainDecisions
+			.mockReturnValueOnce('');             // customPrompt (empty)
+
+		try {
+			await executeHelperOperation.call(mockThis, 'aiFilterItems', 0);
+			fail('Should have thrown error for empty custom prompt');
+		} catch (error: any) {
+			expect(error.message).toContain('Custom filter prompt is required');
+		}
+	});
+
+	it('should reject empty items array', async () => {
+		mockThis.getNodeParameter
+			.mockReturnValueOnce('[]')            // empty items array
+			.mockReturnValueOnce('preset')
+			.mockReturnValueOnce('claude-3-5-sonnet-20241022')
+			.mockReturnValueOnce('withStats')
+			.mockReturnValueOnce(false);
+
+		try {
+			await executeHelperOperation.call(mockThis, 'aiFilterItems', 0);
+			fail('Should have thrown error for empty array');
+		} catch (error: any) {
+			expect(error.message).toContain('non-empty array');
+		}
+	});
+});

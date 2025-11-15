@@ -534,6 +534,223 @@ function formatFileSize(bytes: number): string {
 }
 
 /**
+ * Builds filter prompts based on preset filters
+ * @param presetFilter - Preset filter name
+ * @param context - Additional context for relevance filtering
+ * @returns Filter prompt for AI
+ */
+function buildFilterPrompt(presetFilter: string, context?: string): string {
+	switch (presetFilter) {
+		case 'validItems':
+			return 'Keep only valid, complete, and well-formed items. Remove items that are invalid, incomplete, malformed, or have missing critical information.';
+		case 'removeDuplicates':
+			return 'Analyze the items for semantic duplicates. Keep only unique items, removing any duplicates based on meaning and content, not just exact text matches.';
+		case 'completeRecords':
+			return 'Keep only complete records where all required fields are present and not empty. Remove items with missing, null, undefined, or empty required fields.';
+		case 'qualityFilter':
+			return 'Keep only high-quality items with well-formatted, meaningful, and useful data. Remove low-quality items with poor formatting, meaningless content, or garbage data.';
+		case 'removeTestData':
+			return 'Remove test/dummy/placeholder data such as "test@example.com", "John Doe", "Test User", "Lorem ipsum", or similar test values. Keep only real, production data.';
+		case 'activeItems':
+			return 'Keep only active, enabled, or current items. Remove items that are inactive, disabled, archived, deleted, or marked as obsolete.';
+		case 'relevanceFilter':
+			return `Keep only items that are relevant to the following context or topic: "${context}". Remove items that are unrelated or not relevant to this context.`;
+		default:
+			return presetFilter;
+	}
+}
+
+/**
+ * Filters items using AI
+ * @param items - Array of items to filter
+ * @param filterPrompt - Filter prompt/criteria
+ * @param aiProvider - AI provider (openai, anthropic, google)
+ * @param aiModel - AI model to use
+ * @param apiKey - API key for the provider
+ * @param explainDecisions - Whether to include explanations
+ * @returns Filtered items with optional explanations
+ */
+async function filterItemsWithAI(
+	items: any[],
+	filterPrompt: string,
+	aiProvider: string,
+	aiModel: string,
+	apiKey: string,
+	explainDecisions: boolean,
+): Promise<{
+	filtered: any[];
+	removed: any[];
+	explanations?: Array<{ item: any; kept: boolean; reason: string }>;
+}> {
+	// Build the AI prompt
+	const systemPrompt = `You are a data filtering assistant. Your task is to filter a list of items based on the given criteria.
+
+For each item, you must decide whether to KEEP or REMOVE it based on the filtering criteria.
+
+${explainDecisions ? 'You must also provide a brief explanation for each decision.' : ''}
+
+Respond ONLY with a valid JSON object in this exact format:
+{
+  "results": [
+    {
+      "index": 0,
+      "keep": true${explainDecisions ? ',\n      "reason": "Brief explanation"' : ''}
+    }
+  ]
+}`;
+
+	const userPrompt = `Filter the following items based on this criteria:
+
+**Filter Criteria:** ${filterPrompt}
+
+**Items to filter:**
+${JSON.stringify(items, null, 2)}
+
+Analyze each item and decide whether to KEEP or REMOVE it based on the filter criteria.
+${explainDecisions ? 'Provide a brief reason for each decision.' : ''}
+
+Remember: Respond ONLY with valid JSON in the exact format specified.`;
+
+	try {
+		let response: Response;
+		let aiResponse: string;
+
+		if (aiProvider === 'openai') {
+			// OpenAI API
+			response = await fetch('https://api.openai.com/v1/chat/completions', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model: aiModel,
+					messages: [
+						{ role: 'system', content: systemPrompt },
+						{ role: 'user', content: userPrompt },
+					],
+					temperature: 0.1,
+					response_format: { type: 'json_object' },
+				}),
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+			}
+
+			const data = await response.json() as any;
+			aiResponse = data.choices[0].message.content;
+
+		} else if (aiProvider === 'anthropic') {
+			// Anthropic API (Claude)
+			response = await fetch('https://api.anthropic.com/v1/messages', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'x-api-key': apiKey,
+					'anthropic-version': '2023-06-01',
+				},
+				body: JSON.stringify({
+					model: aiModel,
+					max_tokens: 4096,
+					system: systemPrompt,
+					messages: [
+						{
+							role: 'user',
+							content: userPrompt,
+						},
+					],
+				}),
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
+			}
+
+			const data = await response.json() as any;
+			aiResponse = data.content[0].text;
+
+		} else if (aiProvider === 'google') {
+			// Google Gemini API
+			response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${aiModel}:generateContent?key=${apiKey}`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					contents: [{
+						parts: [{
+							text: `${systemPrompt}\n\n${userPrompt}`,
+						}],
+					}],
+					generationConfig: {
+						temperature: 0.1,
+					},
+				}),
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Google API error: ${response.status} - ${errorText}`);
+			}
+
+			const data = await response.json() as any;
+			aiResponse = data.candidates[0].content.parts[0].text;
+
+		} else {
+			throw new Error(`Unsupported AI provider: ${aiProvider}`);
+		}
+
+		// Parse AI response
+		let parsedResponse: any;
+		try {
+			parsedResponse = JSON.parse(aiResponse);
+		} catch (parseError) {
+			throw new Error(`Failed to parse AI response as JSON: ${aiResponse}`);
+		}
+
+		if (!parsedResponse.results || !Array.isArray(parsedResponse.results)) {
+			throw new Error('Invalid AI response format: missing or invalid "results" array');
+		}
+
+		// Build filtered and removed arrays
+		const filtered: any[] = [];
+		const removed: any[] = [];
+		const explanations: Array<{ item: any; kept: boolean; reason: string }> = [];
+
+		for (const result of parsedResponse.results) {
+			const itemIndex = result.index;
+			const keep = result.keep === true;
+			const item = items[itemIndex];
+
+			if (keep) {
+				filtered.push(item);
+			} else {
+				removed.push(item);
+			}
+
+			if (explainDecisions && result.reason) {
+				explanations.push({
+					item,
+					kept: keep,
+					reason: result.reason,
+				});
+			}
+		}
+
+		return {
+			filtered,
+			removed,
+			explanations: explainDecisions ? explanations : undefined,
+		};
+	} catch (error) {
+		throw new Error(`AI filtering failed: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
+
+/**
  * Executes helper operations for building Appwrite queries, permissions, and schemas
  * @param this - n8n execution context
  * @param operation - Operation to perform (buildPermissions, buildQuery, buildSchema)
@@ -886,6 +1103,103 @@ export async function executeHelperOperation(
 				...metadata,
 			},
 		};
+	} else if (operation === 'aiFilterItems') {
+		// Get parameters
+		const itemsInput = this.getNodeParameter('itemsInput', i) as string;
+		const filterMode = this.getNodeParameter('filterMode', i, 'preset') as string;
+		const aiProvider = this.getNodeParameter('aiProvider', i, 'openai') as string;
+		const aiModel = this.getNodeParameter('aiModel', i, '') as string;
+		const apiKeyParam = this.getNodeParameter('apiKey', i, '') as string;
+		const returnMode = this.getNodeParameter('returnMode', i, 'withStats') as string;
+		const explainDecisions = this.getNodeParameter('explainDecisions', i, false) as boolean;
+
+		// Get API key from parameter or environment variable
+		let apiKey = apiKeyParam;
+		if (!apiKey) {
+			const envKeyMap: Record<string, string> = {
+				'openai': 'OPENAI_API_KEY',
+				'anthropic': 'ANTHROPIC_API_KEY',
+				'google': 'GOOGLE_API_KEY',
+			};
+			const envKey = envKeyMap[aiProvider];
+			apiKey = process.env[envKey] || '';
+			if (!apiKey) {
+				throw new NodeOperationError(
+					this.getNode(),
+					`API key is required. Either provide it in the node or set the ${envKey} environment variable.`,
+				);
+			}
+		}
+
+		// Parse items
+		const itemsResult = safeJsonParse<any[]>(itemsInput, 'itemsInput');
+		if (!itemsResult.success) {
+			throw new Error(itemsResult.error);
+		}
+		const items = itemsResult.data;
+
+		if (!Array.isArray(items) || items.length === 0) {
+			throw new NodeOperationError(
+				this.getNode(),
+				'Items input must be a non-empty array',
+			);
+		}
+
+		// Build filter prompt
+		let filterPrompt: string;
+		if (filterMode === 'preset') {
+			const presetFilter = this.getNodeParameter('presetFilter', i, 'validItems') as string;
+			const relevanceContext = this.getNodeParameter('relevanceContext', i, '') as string;
+			filterPrompt = buildFilterPrompt(presetFilter, relevanceContext);
+		} else {
+			filterPrompt = this.getNodeParameter('customPrompt', i) as string;
+			if (!filterPrompt || filterPrompt.trim() === '') {
+				throw new NodeOperationError(
+					this.getNode(),
+					'Custom filter prompt is required when using custom mode',
+				);
+			}
+		}
+
+		// Filter items with AI
+		const result = await filterItemsWithAI(items, filterPrompt, aiProvider, aiModel, apiKey, explainDecisions);
+
+		// Build response based on return mode
+		if (returnMode === 'filtered') {
+			return {
+				json: {
+					items: result.filtered,
+					count: result.filtered.length,
+				},
+			};
+		} else if (returnMode === 'withStats') {
+			return {
+				json: {
+					items: result.filtered,
+					stats: {
+						total: items.length,
+						kept: result.filtered.length,
+						removed: result.removed.length,
+						keepPercentage: Math.round((result.filtered.length / items.length) * 100),
+					},
+					explanations: result.explanations,
+				},
+			};
+		} else if (returnMode === 'both') {
+			return {
+				json: {
+					filtered: result.filtered,
+					removed: result.removed,
+					stats: {
+						total: items.length,
+						kept: result.filtered.length,
+						removed: result.removed.length,
+						keepPercentage: Math.round((result.filtered.length / items.length) * 100),
+					},
+					explanations: result.explanations,
+				},
+			};
+		}
 	}
 
 	throw new Error(`Unknown helper operation: ${operation}`);
